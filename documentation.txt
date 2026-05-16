@@ -1,0 +1,6 @@
+setup frontend
+npm create vite@latest . (. used for current directory )
+
+Install Tailwind
+Inside frontend run:
+npm install tailwindcss @tailwindcss/vite

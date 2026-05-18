@@ -1,4 +1,51 @@
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Boxes,
+  Package,
+  Truck,
+  Users,
+  ShoppingCart,
+  TrendingUp,
+} from "lucide-react";
+
+const navItems = [
+  {
+    name: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Inventory",
+    path: "/inventory",
+    icon: Boxes,
+  },
+  {
+    name: "Products",
+    path: "/products",
+    icon: Package,
+  },
+  {
+    name: "Suppliers",
+    path: "/suppliers",
+    icon: Truck,
+  },
+  {
+    name: "Customers",
+    path: "/customers",
+    icon: Users,
+  },
+  {
+    name: "Orders",
+    path: "/orders",
+    icon: ShoppingCart,
+  },
+  {
+    name: "Profit",
+    path: "/profit",
+    icon: TrendingUp,
+  },
+];
 
 function Sidebar() {
   return (
@@ -8,33 +55,26 @@ function Sidebar() {
       </div>
 
       <nav className="flex flex-col p-4 gap-2">
-        <Link
-          to="/dashboard"
-          className="px-4 py-3 rounded-lg hover:bg-slate-800 transition"
-        >
-          Dashboard
-        </Link>
+        {navItems.map((item) => {
+          const Icon = item.icon;
 
-        <Link
-          to="/inventory"
-          className="px-4 py-3 rounded-lg hover:bg-slate-800 transition"
-        >
-          Inventory
-        </Link>
-
-        <Link
-          to="/products"
-          className="px-4 py-3 rounded-lg hover:bg-slate-800 transition"
-        >
-          Products
-        </Link>
-
-        <Link
-          to="/suppliers"
-          className="px-4 py-3 rounded-lg hover:bg-slate-800 transition"
-        >
-          Suppliers
-        </Link>
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-slate-800 text-slate-300"
+                }`
+              }
+            >
+              <Icon size={20} />
+              <span>{item.name}</span>
+            </NavLink>
+          );
+        })}
       </nav>
     </aside>
   );

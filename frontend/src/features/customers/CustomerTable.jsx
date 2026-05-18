@@ -1,0 +1,110 @@
+import { Fragment, useState } from "react";
+
+function CustomerTable({ customers, orders }) {
+  const [expandedCustomer, setExpandedCustomer] = useState(null);
+
+  function parseAmount(value) {
+    return Number(String(value).replace(/[^0-9.-]/g, "")) || 0;
+  }
+
+  function customerOrders(customerId) {
+    return orders.filter((order) => order.customerId === customerId);
+  }
+
+  function customerTotal(customerId) {
+    return customerOrders(customerId).reduce(
+      (sum, order) => sum + parseAmount(order.totalPrice),
+      0
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      <table className="w-full">
+        <thead className="bg-gray-50">
+          <tr className="text-left">
+            <th className="p-4">Name</th>
+            <th className="p-4">Phone</th>
+            <th className="p-4">Email</th>
+            <th className="p-4">Total Purchase</th>
+            <th className="p-4">Orders</th>
+            <th className="p-4">History</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {customers.map((customer) => {
+            const ordersForCustomer = customerOrders(customer.id);
+            const totalAmount = customerTotal(customer.id);
+            const isExpanded = expandedCustomer === customer.id;
+
+            return (
+              <Fragment key={customer.id}>
+                <tr className="border-t hover:bg-gray-50 transition">
+                  <td className="p-4 font-medium">{customer.name}</td>
+                  <td className="p-4">{customer.phone}</td>
+                  <td className="p-4">{customer.email}</td>
+                  <td className="p-4">₹{totalAmount.toLocaleString("en-IN")}</td>
+                  <td className="p-4">{ordersForCustomer.length}</td>
+                  <td className="p-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedCustomer(isExpanded ? null : customer.id)
+                      }
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {isExpanded ? "Hide" : "View"}
+                    </button>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr className="bg-slate-50">
+                    <td colSpan={6} className="p-4">
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-800">
+                          Past Orders ({ordersForCustomer.length})
+                        </h3>
+                        {ordersForCustomer.length === 0 ? (
+                          <p className="text-sm text-gray-500">No orders placed yet.</p>
+                        ) : (
+                          <div className="grid gap-3">
+                            {ordersForCustomer.map((order) => (
+                              <div
+                                key={order.id}
+                                className="rounded-xl border bg-white p-4"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <p className="font-semibold text-gray-800">
+                                      {order.orderNumber}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                      {order.productName} • Qty {order.quantity}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-gray-800">
+                                      {order.totalPrice}
+                                    </p>
+                                    <p className="text-sm text-gray-500">{order.date}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default CustomerTable;

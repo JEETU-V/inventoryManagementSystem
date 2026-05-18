@@ -4,3 +4,19 @@ npm create vite@latest . (. used for current directory )
 Install Tailwind
 Inside frontend run:
 npm install tailwindcss @tailwindcss/vite
+
+---
+Changelog (2026-05-18):
+- Added `Profit` dashboard page to show total purchased cost, sales revenue, and net profit (product-level breakdown).
+- Added supplier purchase recording (existing) used to compute purchase cost on Profit page.
+- Removed supplier `Sales` and `Profit` columns from the Suppliers page; kept `Total Purchase` and transaction history.
+- Added order `discount` (0–100%) and persisted discount + quantity in orders; Order list now shows `Discount` column.
+- Orders now store `supplierId` when available so supplier attribution works from sales.
+- Fixed search-selection behavior in the Add Order modal and ensured stock updates when orders are placed.
+
+How to build frontend:
+```
+cd frontend
+npm install
+npm run build
+```

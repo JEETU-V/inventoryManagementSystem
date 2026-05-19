@@ -1,0 +1,16 @@
+TODO for Tomorrow (2026-05-19):
+
+1. Backend API Setup:
+   - Create Express.js REST API for products, suppliers, customers, orders, and profit endpoints.
+   - Set up database (MongoDB/PostgreSQL) for persistent data storage.
+   - Implement authentication middleware (optional: JWT tokens).
+
+2. Frontend Enhancements:
+   - Add edit/delete buttons to Order, Customer, and Supplier tables.
+   - Implement real-time notifications or alerts for low stock items.
+   - Add export/print functionality for Profit and Order reports.
+
+3. Testing & Deployment:
+   - Write unit tests for frontend components.
+   - Set up CI/CD pipeline (GitHub Actions or similar).
+   - Deploy frontend to Vercel/Netlify and backend to Heroku/Railway.

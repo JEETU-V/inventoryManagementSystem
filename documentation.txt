@@ -20,3 +20,8 @@ cd frontend
 npm install
 npm run build
 ```
+
+Key Features:
+- Products page: Add/edit/delete products with supplier, purchase price, and selling price.
+- Orders page: Create orders with customer search, product search, quantity, and discount; order total auto-calculates from (price - discount%) × quantity.
+- Profit page: Real-time profit/loss dashboard computed from supplier purchase costs and customer order revenue per product.

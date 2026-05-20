@@ -8,46 +8,52 @@ import {
   ShoppingCart,
   TrendingUp,
 } from "lucide-react";
-
-const navItems = [
-  {
-    name: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Inventory",
-    path: "/inventory",
-    icon: Boxes,
-  },
-  {
-    name: "Products",
-    path: "/products",
-    icon: Package,
-  },
-  {
-    name: "Suppliers",
-    path: "/suppliers",
-    icon: Truck,
-  },
-  {
-    name: "Customers",
-    path: "/customers",
-    icon: Users,
-  },
-  {
-    name: "Orders",
-    path: "/orders",
-    icon: ShoppingCart,
-  },
-  {
-    name: "Profit",
-    path: "/profit",
-    icon: TrendingUp,
-  },
-];
+import { useAppData } from "../../contexts/AppContext";
 
 function Sidebar() {
+  const { canViewProfit } = useAppData();
+
+  const navItems = [
+    {
+      name: "Dashboard",
+      path: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      name: "Inventory",
+      path: "/inventory",
+      icon: Boxes,
+    },
+    {
+      name: "Products",
+      path: "/products",
+      icon: Package,
+    },
+    {
+      name: "Suppliers",
+      path: "/suppliers",
+      icon: Truck,
+    },
+    {
+      name: "Customers",
+      path: "/customers",
+      icon: Users,
+    },
+    {
+      name: "Orders",
+      path: "/orders",
+      icon: ShoppingCart,
+    },
+  ];
+
+  if (canViewProfit) {
+    navItems.push({
+      name: "Profit",
+      path: "/profit",
+      icon: TrendingUp,
+    });
+  }
+
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen">
       <div className="p-6 border-b border-slate-700">

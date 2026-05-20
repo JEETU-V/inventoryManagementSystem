@@ -8,6 +8,7 @@ import SupplierTransactionTable from "../features/suppliers/SupplierTransactionT
 
 function Suppliers() {
   const {
+    canManageSuppliers,
     suppliers,
     products,
     orders,
@@ -53,18 +54,26 @@ function Suppliers() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setIsTransactionModalOpen(true)}
-            className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-lg hover:bg-purple-700 transition"
-          >
-            <Plus size={18} /> Record Purchase
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-lg hover:bg-indigo-700 transition"
-          >
-            <Plus size={18} /> Add Supplier
-          </button>
+          {canManageSuppliers ? (
+            <>
+              <button
+                onClick={() => setIsTransactionModalOpen(true)}
+                className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-lg hover:bg-purple-700 transition"
+              >
+                <Plus size={18} /> Record Purchase
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-lg hover:bg-indigo-700 transition"
+              >
+                <Plus size={18} /> Add Supplier
+              </button>
+            </>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Manager-only supplier controls
+            </div>
+          )}
         </div>
       </div>
 

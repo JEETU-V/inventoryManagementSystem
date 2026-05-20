@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 
-function ProductTable({ products, onDelete, onEdit }) {
+function ProductTable({ products, onDelete, onEdit, canEdit = true, canDelete = true }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
       <table className="w-full">
@@ -36,22 +36,30 @@ function ProductTable({ products, onDelete, onEdit }) {
                 </span>
               </td>
               <td className="p-4">
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onEdit?.(product)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete?.(product.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+                {canEdit || canDelete ? (
+                  <div className="flex gap-3">
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => onEdit?.(product)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => onDelete?.(product.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-sm text-slate-500">Read-only</span>
+                )}
               </td>
             </tr>
           ))}

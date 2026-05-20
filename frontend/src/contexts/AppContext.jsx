@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 import useLocalStorageState from "../hooks/useLocalStorageState";
 
 const AppContext = createContext(null);
@@ -130,6 +130,7 @@ function parseAmount(value) {
 }
 
 export function AppProvider({ children }) {
+  const [user, setUser] = useLocalStorageState("ims-user", null);
   const [products, setProducts] = useLocalStorageState("ims-products", initialProducts);
   const [suppliers, setSuppliers] = useLocalStorageState("ims-suppliers", initialSuppliers);
   const [customers, setCustomers] = useLocalStorageState("ims-customers", initialCustomers);
@@ -138,6 +139,47 @@ export function AppProvider({ children }) {
     "ims-supplier-transactions",
     initialSupplierTransactions
   );
+
+  const login = ({ email }) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const isAdmin = normalizedEmail === "admin@example.com";
+    const signedInUser = {
+      name: isAdmin ? "Admin" : "Inventory User",
+      email: normalizedEmail,
+      role: isAdmin ? "admin" : "staff",
+      lastSignedIn: new Date().toISOString(),
+    };
+    setUser(signedInUser);
+    return signedInUser;
+  };
+
+  const logout = () => setUser(null);
+
+  const rolePermissions = {
+    admin: {
+      canManageProducts: true,
+      canManageSuppliers: true,
+      canManageOrders: true,
+      canViewProfit: true,
+      canAddCustomer: true,
+    },
+    staff: {
+      canManageProducts: false,
+      canManageSuppliers: false,
+      canManageOrders: true,
+      canViewProfit: false,
+      canAddCustomer: true,
+    },
+    viewer: {
+      canManageProducts: false,
+      canManageSuppliers: false,
+      canManageOrders: false,
+      canViewProfit: false,
+      canAddCustomer: false,
+    },
+  };
+
+  const currentPermissions = rolePermissions[user?.role ?? "viewer"];
 
   const addProduct = (product) => {
     setProducts((prev) => [...prev, product]);
@@ -182,19 +224,26 @@ export function AppProvider({ children }) {
     );
   };
 
-  const totalProducts = products.length;
-  const lowStockCount = products.filter((product) => product.quantity <= product.reorderLevel).length;
-  const totalSuppliers = suppliers.length;
-  const totalCustomers = customers.length;
-  const totalOrders = orders.length;
-  const inventoryValue = products.reduce(
-    (sum, product) => sum + parseAmount(product.price) * product.quantity,
-    0
-  );
+  const computedStats = useMemo(() => ({
+    totalProducts: products.length,
+    lowStockCount: products.filter((product) => product.quantity <= product.reorderLevel).length,
+    totalSuppliers: suppliers.length,
+    totalCustomers: customers.length,
+    totalOrders: orders.length,
+    inventoryValue: products.reduce(
+      (sum, product) => sum + parseAmount(product.price) * product.quantity,
+      0
+    ),
+  }), [products, suppliers, customers, orders]);
 
   return (
     <AppContext.Provider
       value={{
+        user,
+        isAuthenticated: Boolean(user),
+        permissions: currentPermissions,
+        login,
+        logout,
         products,
         suppliers,
         customers,
@@ -207,12 +256,8 @@ export function AppProvider({ children }) {
         addSupplierTransaction,
         addCustomer,
         addOrder,
-        totalProducts,
-        lowStockCount,
-        totalSuppliers,
-        totalCustomers,
-        totalOrders,
-        inventoryValue,
+        ...currentPermissions,
+        ...computedStats,
       }}
     >
       {children}

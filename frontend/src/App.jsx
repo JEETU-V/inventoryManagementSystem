@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { AppProvider } from "./contexts/AppContext";
+import { AppProvider, useAppData } from "./contexts/AppContext";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Products from "./pages/Products";
@@ -13,21 +13,45 @@ import NotFound from "./pages/NotFound";
 
 import MainLayout from "./components/layout/MainLayout";
 
+function RequireAuth({ children }) {
+  const { isAuthenticated } = useAppData();
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function PublicRoute({ children }) {
+  const { isAuthenticated } = useAppData();
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
+}
+
+function AdminRoute({ children }) {
+  const { isAuthenticated, canViewProfit } = useAppData();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return canViewProfit ? children : <Navigate to="/dashboard" replace />;
+}
+
+function RootRedirect() {
+  const { isAuthenticated } = useAppData();
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
+}
+
 function App() {
   return (
     <AppProvider>
       <BrowserRouter>
         <Routes>
-        {/* Redirect root to dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="/" element={<RootRedirect />} />
 
         {/* Dashboard */}
         <Route
           path="/dashboard"
           element={
-            <MainLayout>
-              <Dashboard />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Dashboard />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -35,9 +59,11 @@ function App() {
         <Route
           path="/inventory"
           element={
-            <MainLayout>
-              <Inventory />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Inventory />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -45,9 +71,11 @@ function App() {
         <Route
           path="/products"
           element={
-            <MainLayout>
-              <Products />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Products />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -55,9 +83,11 @@ function App() {
         <Route
           path="/suppliers"
           element={
-            <MainLayout>
-              <Suppliers />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Suppliers />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -65,9 +95,11 @@ function App() {
         <Route
           path="/customers"
           element={
-            <MainLayout>
-              <Customers />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Customers />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -75,9 +107,11 @@ function App() {
         <Route
           path="/orders"
           element={
-            <MainLayout>
-              <Orders />
-            </MainLayout>
+            <RequireAuth>
+              <MainLayout>
+                <Orders />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 
@@ -85,14 +119,23 @@ function App() {
         <Route
           path="/profit"
           element={
-            <MainLayout>
-              <Profit />
-            </MainLayout>
+            <AdminRoute>
+              <MainLayout>
+                <Profit />
+              </MainLayout>
+            </AdminRoute>
           }
         />
 
         {/* Login */}
-        <Route path="/login" element={<Login />} />
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

@@ -5,7 +5,14 @@ import ProductTable from "../features/products/ProductTable";
 import AddProductModal from "../features/products/AddProductModal";
 
 function Products() {
-  const { products, suppliers, addProduct, updateProduct, deleteProduct } = useAppData();
+  const {
+    canManageProducts,
+    products,
+    suppliers,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+  } = useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -49,13 +56,19 @@ function Products() {
           <p className="text-gray-500 mt-1">Manage stationery inventory, stock, and pricing.</p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition"
-        >
-          <Plus size={18} />
-          {selectedProduct ? "Edit Product" : "Add Product"}
-        </button>
+        {canManageProducts ? (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg hover:bg-blue-700 transition"
+          >
+            <Plus size={18} />
+            {selectedProduct ? "Edit Product" : "Add Product"}
+          </button>
+        ) : (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            Read-only access for product inventory
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border">
@@ -71,7 +84,13 @@ function Products() {
         </div>
       </div>
 
-      <ProductTable products={filteredProducts} onDelete={handleDelete} onEdit={handleEdit} />
+      <ProductTable
+        products={filteredProducts}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        canEdit={canManageProducts}
+        canDelete={canManageProducts}
+      />
 
       <AddProductModal
         isOpen={isModalOpen}

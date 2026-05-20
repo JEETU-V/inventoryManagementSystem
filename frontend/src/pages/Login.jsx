@@ -1,14 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAppData } from "../contexts/AppContext";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { user, login } = useAppData();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   function handleSubmit(event) {
     event.preventDefault();
-    navigate("/dashboard");
+
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
+    setError("");
+    login({ email });
+    navigate("/dashboard", { replace: true });
   }
 
   return (
@@ -25,6 +42,7 @@ function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              placeholder="admin@example.com"
               className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
@@ -36,9 +54,12 @@ function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              placeholder="Enter your password"
               className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             type="submit"
@@ -47,6 +68,10 @@ function Login() {
             Sign In
           </button>
         </form>
+
+        <p className="text-sm text-gray-500 mt-6">
+          Use <span className="font-semibold">admin@example.com</span> or any email to sign in.
+        </p>
       </div>
     </div>
   );

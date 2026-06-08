@@ -44,6 +44,11 @@ function Sidebar() {
       path: "/orders",
       icon: ShoppingCart,
     },
+    {
+      name: "Sales",
+      path: "/sales",
+      icon: TrendingUp,
+    },
   ];
 
   if (canViewProfit) {

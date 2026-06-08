@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useAppData } from "../contexts/AppContext";
 
 function Inventory() {
-  const { products, suppliers, customers, orders } = useAppData();
+  const { products, suppliers, orders } = useAppData();
 
   const categories = useMemo(() => {
     return products.reduce((result, product) => {

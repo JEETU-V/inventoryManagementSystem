@@ -14,3 +14,4 @@ TODO for Tomorrow (2026-05-19):
    - Write unit tests for frontend components.
    - Set up CI/CD pipeline (GitHub Actions or similar).
    - Deploy frontend to Vercel/Netlify and backend to Heroku/Railway.
+a 

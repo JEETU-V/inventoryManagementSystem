@@ -8,23 +8,27 @@ import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
 import Orders from "./pages/Orders";
 import Profit from "./pages/Profit";
+import Sales from "./pages/Sales";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
 import MainLayout from "./components/layout/MainLayout";
 
 function RequireAuth({ children }) {
-  const { isAuthenticated } = useAppData();
+  const { isAuthenticated, isBootstrapping } = useAppData();
+  if (isBootstrapping) return null;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
 function PublicRoute({ children }) {
-  const { isAuthenticated } = useAppData();
+  const { isAuthenticated, isBootstrapping } = useAppData();
+  if (isBootstrapping) return null;
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 }
 
 function AdminRoute({ children }) {
-  const { isAuthenticated, canViewProfit } = useAppData();
+  const { isAuthenticated, isBootstrapping, canViewProfit } = useAppData();
+  if (isBootstrapping) return null;
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -32,7 +36,8 @@ function AdminRoute({ children }) {
 }
 
 function RootRedirect() {
-  const { isAuthenticated } = useAppData();
+  const { isAuthenticated, isBootstrapping } = useAppData();
+  if (isBootstrapping) return null;
   return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
 }
 
@@ -124,6 +129,18 @@ function App() {
                 <Profit />
               </MainLayout>
             </AdminRoute>
+          }
+        />
+
+        {/* Sales */}
+        <Route
+          path="/sales"
+          element={
+            <RequireAuth>
+              <MainLayout>
+                <Sales />
+              </MainLayout>
+            </RequireAuth>
           }
         />
 

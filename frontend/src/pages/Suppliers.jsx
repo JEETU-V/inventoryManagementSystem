@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, X } from "lucide-react";
 import { useAppData } from "../contexts/AppContext";
 import SupplierTable from "../features/suppliers/SupplierTable";
 import AddSupplierModal from "../features/suppliers/AddSupplierModal";
 import AddSupplierTransactionModal from "../features/suppliers/AddSupplierTransactionModal";
+import SupplierPdfUpload from "../features/suppliers/SupplierPdfUpload";
 import SupplierTransactionTable from "../features/suppliers/SupplierTransactionTable";
 
 function Suppliers() {
@@ -11,7 +12,6 @@ function Suppliers() {
     canManageSuppliers,
     suppliers,
     products,
-    orders,
     supplierTransactions,
     addSupplier,
     addSupplierTransaction,
@@ -19,6 +19,8 @@ function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState(null);
 
   const filteredSuppliers = suppliers.filter((supplier) =>
     [supplier.name, supplier.contact, supplier.email, supplier.productsSupplied]
@@ -44,6 +46,16 @@ function Suppliers() {
   });
 
   const totalPurchase = Object.values(supplierMetrics).reduce((sum, metric) => sum + metric.purchase, 0);
+
+  const handleUploadClick = (supplierId) => {
+    setSelectedSupplierId(supplierId);
+    setIsPdfModalOpen(true);
+  };
+
+  const handleUploadSuccess = () => {
+    // Optionally refresh data or show success message
+    setTimeout(() => setIsPdfModalOpen(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -98,7 +110,11 @@ function Suppliers() {
         </div>
       </div>
 
-      <SupplierTable suppliers={filteredSuppliers} metrics={supplierMetrics} />
+      <SupplierTable 
+        suppliers={filteredSuppliers} 
+        metrics={supplierMetrics}
+        onUploadClick={handleUploadClick}
+      />
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-gray-800">Supplier Purchase History</h2>
@@ -118,6 +134,31 @@ function Suppliers() {
         products={products}
         onAddSupplierTransaction={addSupplierTransaction}
       />
+
+      {/* PDF Upload Modal */}
+      {isPdfModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-bold">Upload Supplier Purchase PDF</h2>
+              <button
+                onClick={() => setIsPdfModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              {selectedSupplierId && (
+                <SupplierPdfUpload 
+                  supplierId={selectedSupplierId}
+                  onUploadSuccess={handleUploadSuccess}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

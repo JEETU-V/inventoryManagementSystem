@@ -1,19 +1,24 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { useAppData } from "../contexts/AppContext";
+import { getOrderItems } from "../utils/orderHelpers";
 import OrderTable from "../features/orders/OrderTable";
 import AddOrderModal from "../features/orders/AddOrderModal";
 
 function Orders() {
-  const { orders, products, customers, addOrder } = useAppData();
+  const { orders, products, customers, addOrder, updateOrder, legacyOrderMigrationRun } = useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const filteredOrders = orders.filter((order) =>
-    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.productName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = orders.filter((order) => {
+    const orderItems = getOrderItems(order);
+    const query = searchTerm.toLowerCase();
+    return (
+      order.orderNumber.toLowerCase().includes(query) ||
+      order.customerName.toLowerCase().includes(query) ||
+      orderItems.some((item) => item.productName.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -31,6 +36,12 @@ function Orders() {
         </button>
       </div>
 
+      {legacyOrderMigrationRun && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Legacy order data was detected and automatically migrated to the new multi-item order format.
+        </div>
+      )}
+
       <div className="bg-white p-4 rounded-xl shadow-sm border">
         <div className="flex items-center bg-gray-100 px-4 py-3 rounded-lg">
           <Search size={18} className="text-gray-500" />
@@ -44,7 +55,7 @@ function Orders() {
         </div>
       </div>
 
-      <OrderTable orders={filteredOrders} />
+      <OrderTable orders={filteredOrders} onUpdateOrderStatus={updateOrder} />
 
       <AddOrderModal
         isOpen={isModalOpen}

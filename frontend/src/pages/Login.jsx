@@ -15,7 +15,7 @@ function Login() {
     }
   }, [user, navigate]);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (!email.trim() || !password.trim()) {
@@ -24,8 +24,12 @@ function Login() {
     }
 
     setError("");
-    login({ email });
-    navigate("/dashboard", { replace: true });
+    try {
+      await login({ email, password });
+      navigate("/dashboard", { replace: true });
+    } catch (error) {
+      setError(error.response?.data?.message || "Unable to sign in.");
+    }
   }
 
   return (
@@ -70,7 +74,7 @@ function Login() {
         </form>
 
         <p className="text-sm text-gray-500 mt-6">
-          Use <span className="font-semibold">admin@example.com</span> or any email to sign in.
+          Use the backend admin account configured in <span className="font-semibold">.env</span>.
         </p>
       </div>
     </div>

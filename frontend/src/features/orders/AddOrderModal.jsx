@@ -3,23 +3,28 @@ import { useEffect, useMemo, useState } from "react";
 function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
   const [formData, setFormData] = useState({
     customerId: "",
+    status: "Pending",
+  });
+  const [lineItem, setLineItem] = useState({
     productId: "",
     quantity: 1,
     discount: 0,
-    status: "Pending",
   });
+  const [orderItems, setOrderItems] = useState([]);
   const [customerQuery, setCustomerQuery] = useState("");
   const [productQuery, setProductQuery] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
-      setFormData({ customerId: "", productId: "", quantity: 1, discount: 0, status: "Pending" });
+      setFormData({ customerId: "", status: "Pending" });
+      setLineItem({ productId: "", quantity: 1, discount: 0 });
+      setOrderItems([]);
       setCustomerQuery("");
       setProductQuery("");
     }
   }, [isOpen]);
 
-  const selectedProduct = products.find((product) => product.id === Number(formData.productId));
+  const selectedLineProduct = products.find((product) => product.id === Number(lineItem.productId));
   const selectedCustomer = customers.find((customer) => customer.id === Number(formData.customerId));
 
   useEffect(() => {
@@ -29,13 +34,15 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
   }, [customerQuery, selectedCustomer]);
 
   useEffect(() => {
-    if (selectedProduct && productQuery !== selectedProduct.name) {
-      setFormData((prev) => ({ ...prev, productId: "" }));
+    if (selectedLineProduct && productQuery !== selectedLineProduct.name) {
+      setLineItem((prev) => ({ ...prev, productId: "" }));
     }
-  }, [productQuery, selectedProduct]);
+  }, [productQuery, selectedLineProduct]);
 
-  const showCustomerSuggestions = customerQuery.length > 0 && (!selectedCustomer || selectedCustomer.name !== customerQuery);
-  const showProductSuggestions = productQuery.length > 0 && (!selectedProduct || selectedProduct.name !== productQuery);
+  const showCustomerSuggestions =
+    customerQuery.length > 0 && (!selectedCustomer || selectedCustomer.name !== customerQuery);
+  const showProductSuggestions =
+    productQuery.length > 0 && (!selectedLineProduct || selectedLineProduct.name !== productQuery);
 
   const customerMatches = useMemo(() => {
     const query = customerQuery.trim().toLowerCase();
@@ -64,22 +71,29 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
   }
 
   function getTotal() {
-    if (!selectedProduct) return "₹0";
-    const price = parseAmount(selectedProduct.price);
-    const quantity = Number(formData.quantity);
-    const discount = Number(formData.discount) || 0;
-    const discountedPrice = price * (1 - discount / 100);
-    const total = discountedPrice * quantity;
+    if (orderItems.length === 0) return "₹0";
+    const total = orderItems.reduce(
+      (sum, item) => sum + parseAmount(item.totalPrice),
+      0
+    );
     return `₹${total.toLocaleString("en-IN")}`;
   }
 
-  function handleChange(event) {
+  function handleFormChange(event) {
     const { name, value } = event.target;
     setFormData((prev) => ({
       ...prev,
+      [name]: value,
+    }));
+  }
+
+  function handleLineChange(event) {
+    const { name, value } = event.target;
+    setLineItem((prev) => ({
+      ...prev,
       [name]:
         name === "quantity"
-          ? Number(value)
+          ? Math.max(1, Number(value))
           : name === "discount"
           ? Math.max(0, Math.min(100, Number(value)))
           : value,
@@ -92,25 +106,64 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
   }
 
   function handleSelectProduct(product) {
-    setFormData((prev) => ({ ...prev, productId: product.id }));
+    setLineItem((prev) => ({ ...prev, productId: product.id }));
     setProductQuery(product.name);
+  }
+
+  function handleAddItem() {
+    if (!selectedLineProduct || !lineItem.quantity) return;
+
+    const lineTotal = parseAmount(selectedLineProduct.price) * lineItem.quantity * (1 - lineItem.discount / 100);
+    const nextItem = {
+      productId: selectedLineProduct.id,
+      productName: selectedLineProduct.name,
+      supplierId: selectedLineProduct.supplierId ?? null,
+      unitPrice: selectedLineProduct.price,
+      quantity: lineItem.quantity,
+      discount: lineItem.discount,
+      totalPrice: `₹${lineTotal.toLocaleString("en-IN")}`,
+    };
+
+    setOrderItems((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.productId === nextItem.productId && item.discount === nextItem.discount
+      );
+      if (existingIndex >= 0) {
+        const nextItems = [...prev];
+        const merged = nextItems[existingIndex];
+        merged.quantity += nextItem.quantity;
+        merged.totalPrice = `₹${(
+          parseAmount(merged.unitPrice) * merged.quantity * (1 - merged.discount / 100)
+        ).toLocaleString("en-IN")}`;
+        nextItems[existingIndex] = merged;
+        return nextItems;
+      }
+      return [...prev, nextItem];
+    });
+
+    setLineItem({ productId: "", quantity: 1, discount: 0 });
+    setProductQuery("");
+  }
+
+  function handleRemoveItem(productId, discount) {
+    setOrderItems((prev) => prev.filter((item) => !(item.productId === productId && item.discount === discount)));
   }
 
   function handleSubmit(event) {
     event.preventDefault();
-    if (!selectedCustomer || !selectedProduct) return;
+    if (!selectedCustomer || orderItems.length === 0) return;
+
+    const total = orderItems.reduce((sum, item) => sum + parseAmount(item.totalPrice), 0);
+    const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const newOrder = {
       id: Date.now(),
       orderNumber: `ORD-${Date.now().toString().slice(-5)}`,
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name,
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      supplierId: selectedProduct.supplierId ?? null,
-      quantity: Number(formData.quantity),
-      discount: Number(formData.discount) || 0,
-      totalPrice: getTotal(),
+      items: orderItems,
+      totalQuantity,
+      totalPrice: `₹${total.toLocaleString("en-IN")}`,
       status: formData.status,
       date: new Date().toISOString().slice(0, 10),
     };
@@ -162,7 +215,6 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
               onChange={(e) => setProductQuery(e.target.value)}
               placeholder="Search product by name, SKU, or category"
               className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-              required
             />
             {showProductSuggestions && (
               <div className="absolute z-20 mt-1 w-full max-h-48 overflow-auto rounded-xl border bg-white shadow-lg">
@@ -186,11 +238,10 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
               type="number"
               name="quantity"
               min={1}
-              value={formData.quantity}
-              onChange={handleChange}
+              value={lineItem.quantity}
+              onChange={handleLineChange}
               className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Quantity"
-              required
             />
 
             <input
@@ -198,19 +249,35 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
               name="discount"
               min={0}
               max={100}
-              value={formData.discount}
-              onChange={handleChange}
+              value={lineItem.discount}
+              onChange={handleLineChange}
               className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Discount %"
-              required
             />
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="text-sm text-gray-600">
+              {selectedLineProduct ? (
+                <span>{selectedLineProduct.name} • {selectedLineProduct.quantity} in stock</span>
+              ) : (
+                <span>Select a product to add to the order.</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleAddItem}
+              className="inline-flex items-center justify-center rounded-lg bg-blue-600 text-white px-5 py-3 hover:bg-blue-700 transition"
+            >
+              Add Item
+            </button>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <select
               name="status"
               value={formData.status}
-              onChange={handleChange}
+              onChange={handleFormChange}
               className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="Pending">Pending</option>
@@ -219,9 +286,40 @@ function AddOrderModal({ isOpen, setIsOpen, products, customers, onAddOrder }) {
             </select>
           </div>
 
+          {orderItems.length > 0 && (
+            <div className="space-y-3 bg-slate-50 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-gray-800">Order Items</h3>
+              <div className="space-y-2">
+                {orderItems.map((item) => (
+                  <div key={`${item.productId}-${item.discount}`} className="rounded-xl border bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-800">{item.productName}</p>
+                        <p className="text-sm text-gray-500">
+                          Qty {item.quantity} • {item.discount}% discount
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-800">{item.totalPrice}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.productId, item.discount)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-gray-50 rounded-xl p-4">
             <p className="text-sm text-gray-500">Order summary</p>
             <p className="mt-2 text-lg font-semibold">Total: {getTotal()}</p>
+            <p className="text-sm text-gray-500 mt-1">{orderItems.length} item{orderItems.length === 1 ? "" : "s"} added.</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

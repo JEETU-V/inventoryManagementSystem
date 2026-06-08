@@ -1,9 +1,6 @@
 import { useMemo } from "react";
 import { useAppData } from "../contexts/AppContext";
-
-function parseAmount(value) {
-  return Number(String(value).replace(/[^0-9.-]/g, "")) || 0;
-}
+import { getOrderItems, parseAmount } from "../utils/orderHelpers";
 
 function Profit() {
   const { products, orders, supplierTransactions } = useAppData();
@@ -45,22 +42,26 @@ function Profit() {
       productMap.set(productId, productRow);
     });
 
-    orders.forEach((order) => {
-      const productId = order.productId;
-      const productRow = productMap.get(productId) || {
-        productId,
-        productName: order.productName,
-        supplierId: order.supplierId ?? null,
-        purchasedQty: 0,
-        purchaseCost: 0,
-        soldQty: 0,
-        salesRevenue: 0,
-      };
+    orders
+      .filter((order) => order.status === "Completed")
+      .forEach((order) => {
+        getOrderItems(order).forEach((item) => {
+          const productId = item.productId;
+          const productRow = productMap.get(productId) || {
+            productId,
+            productName: item.productName,
+            supplierId: item.supplierId ?? null,
+            purchasedQty: 0,
+            purchaseCost: 0,
+            soldQty: 0,
+            salesRevenue: 0,
+          };
 
-      productRow.soldQty += order.quantity;
-      productRow.salesRevenue += parseAmount(order.totalPrice);
-      productMap.set(productId, productRow);
-    });
+          productRow.soldQty += item.quantity;
+          productRow.salesRevenue += parseAmount(item.totalPrice);
+          productMap.set(productId, productRow);
+        });
+      });
 
     const productProfitData = Array.from(productMap.values()).sort((a, b) => b.salesRevenue - a.salesRevenue);
 

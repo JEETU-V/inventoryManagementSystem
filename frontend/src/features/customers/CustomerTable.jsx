@@ -1,14 +1,13 @@
 import { Fragment, useState } from "react";
+import { getOrderItems, parseAmount } from "../../utils/orderHelpers";
 
 function CustomerTable({ customers, orders }) {
   const [expandedCustomer, setExpandedCustomer] = useState(null);
 
-  function parseAmount(value) {
-    return Number(String(value).replace(/[^0-9.-]/g, "")) || 0;
-  }
-
   function customerOrders(customerId) {
-    return orders.filter((order) => order.customerId === customerId);
+    return orders.filter(
+      (order) => order.customerId === customerId && order.status === "Completed"
+    );
   }
 
   function customerTotal(customerId) {
@@ -80,8 +79,13 @@ function CustomerTable({ customers, orders }) {
                                       {order.orderNumber}
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                      {order.productName} • Qty {order.quantity}
-                                    </p>
+                              {getOrderItems(order).map((item, index, items) => (
+                                <span key={`${item.productId}-${item.discount}`}>
+                                  {item.productName} • Qty {item.quantity}
+                                  {index < items.length - 1 ? "; " : ""}
+                                </span>
+                              ))}
+                            </p>
                                   </div>
                                   <div className="text-right">
                                     <p className="font-semibold text-gray-800">

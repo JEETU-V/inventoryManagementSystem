@@ -1,4 +1,6 @@
-function SupplierTable({ suppliers, metrics }) {
+import { Upload, ChevronDown } from "lucide-react";
+
+function SupplierTable({ suppliers, metrics, onUploadClick, onManageUploads }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
       <table className="w-full">
@@ -9,6 +11,7 @@ function SupplierTable({ suppliers, metrics }) {
             <th className="p-4">Email</th>
             <th className="p-4">Products</th>
             <th className="p-4">Purchase</th>
+            <th className="p-4 text-center">Actions</th>
           </tr>
         </thead>
 
@@ -23,6 +26,16 @@ function SupplierTable({ suppliers, metrics }) {
                 <td className="p-4">{supplier.email}</td>
                 <td className="p-4">{supplier.productsSupplied}</td>
                 <td className="p-4">₹{metric.purchase.toLocaleString("en-IN")}</td>
+                <td className="p-4 flex justify-center gap-2">
+                  <button
+                    onClick={() => onUploadClick(supplier.id)}
+                    className="flex items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition"
+                    title="Upload Supplier PDF"
+                  >
+                    <Upload size={16} />
+                    Upload PDF
+                  </button>
+                </td>
               </tr>
             );
           })}

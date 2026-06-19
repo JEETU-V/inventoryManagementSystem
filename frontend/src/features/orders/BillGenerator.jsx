@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { apiClient } from "../../../services/api";
-import { Printer, Download, X } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { apiClient } from "../../services/api";
+import { Printer, Download, ArrowLeft } from "lucide-react";
 import "./BillGenerator.css";
 
 export default function BillGenerator() {
@@ -60,6 +60,12 @@ export default function BillGenerator() {
   return (
     <div className="bill-container">
       <div className="bill-toolbar no-print">
+        <Link
+          to="/orders"
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-700 hover:bg-slate-200"
+        >
+          <ArrowLeft size={16} /> Back to Orders
+        </Link>
         <button className="btn-print" onClick={handlePrint}>
           <Printer size={18} /> Print
         </button>

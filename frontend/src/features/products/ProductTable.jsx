@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "../../components/ui/EmptyState";
 
 function ProductTable({ products, onDelete, onEdit, canEdit = true, canDelete = true }) {
   return (
@@ -17,7 +18,13 @@ function ProductTable({ products, onDelete, onEdit, canEdit = true, canDelete = 
         </thead>
 
         <tbody>
-          {products.map((product) => (
+          {products.length === 0 ? (
+            <EmptyState
+              title="No products found"
+              description="Add a product or adjust your search."
+            />
+          ) : (
+            products.map((product) => (
             <tr key={product.id} className="border-t hover:bg-gray-50 transition">
               <td className="p-4 font-medium">{product.name}</td>
               <td className="p-4">{product.sku}</td>
@@ -62,7 +69,8 @@ function ProductTable({ products, onDelete, onEdit, canEdit = true, canDelete = 
                 )}
               </td>
             </tr>
-          ))}
+            ))
+          )}
         </tbody>
       </table>
     </div>

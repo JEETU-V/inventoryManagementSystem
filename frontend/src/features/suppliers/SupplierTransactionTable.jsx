@@ -12,15 +12,23 @@ function SupplierTransactionTable({ transactions }) {
           </tr>
         </thead>
         <tbody>
-          {transactions.map((transaction) => (
-            <tr key={transaction.id} className="border-t hover:bg-gray-50 transition">
-              <td className="p-4">{transaction.date}</td>
-              <td className="p-4 font-medium">{transaction.supplierName}</td>
-              <td className="p-4">{transaction.productName}</td>
-              <td className="p-4">{transaction.quantity}</td>
-              <td className="p-4">{transaction.totalCost}</td>
+          {transactions.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="p-8 text-center text-sm text-gray-500">
+                No supplier purchases recorded yet.
+              </td>
             </tr>
-          ))}
+          ) : (
+            transactions.map((transaction) => (
+              <tr key={transaction.id} className="border-t hover:bg-gray-50 transition">
+                <td className="p-4">{transaction.date}</td>
+                <td className="p-4 font-medium">{transaction.supplierName}</td>
+                <td className="p-4">{transaction.productName}</td>
+                <td className="p-4">{transaction.quantity}</td>
+                <td className="p-4">{transaction.totalCost}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

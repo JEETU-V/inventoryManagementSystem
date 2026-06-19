@@ -1,6 +1,8 @@
 import { useMemo } from "react";
+import { Download } from "lucide-react";
 import { useAppData } from "../contexts/AppContext";
 import { getOrderItems, parseAmount } from "../utils/orderHelpers";
+import { exportToCsv } from "../utils/exportCsv";
 
 function Sales() {
   const { orders } = useAppData();
@@ -45,6 +47,18 @@ function Sales() {
     };
   }, [completedOrders]);
 
+  function handleExport() {
+    exportToCsv(
+      "sales-report.csv",
+      ["Product", "Qty Sold", "Revenue"],
+      topProducts.map((product) => [
+        product.productName,
+        product.quantitySold,
+        product.revenue,
+      ])
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -52,6 +66,14 @@ function Sales() {
           <h1 className="text-3xl font-bold text-gray-800">Sales Dashboard</h1>
           <p className="text-gray-500 mt-1">Review completed order revenue, average order value, and top-selling products.</p>
         </div>
+        <button
+          onClick={handleExport}
+          disabled={topProducts.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={18} />
+          Export CSV
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

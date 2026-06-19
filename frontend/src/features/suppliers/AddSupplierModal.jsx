@@ -1,12 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-function AddSupplierModal({ isOpen, setIsOpen, onAddSupplier }) {
+function AddSupplierModal({ isOpen, setIsOpen, onSaveSupplier, supplierToEdit }) {
   const [formData, setFormData] = useState({
     name: "",
     contact: "",
     email: "",
     productsSupplied: "",
   });
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ name: "", contact: "", email: "", productsSupplied: "" });
+      return;
+    }
+
+    if (supplierToEdit) {
+      setFormData({
+        name: supplierToEdit.name,
+        contact: supplierToEdit.contact,
+        email: supplierToEdit.email,
+        productsSupplied: supplierToEdit.productsSupplied,
+      });
+    }
+  }, [isOpen, supplierToEdit]);
 
   if (!isOpen) return null;
 
@@ -17,17 +33,18 @@ function AddSupplierModal({ isOpen, setIsOpen, onAddSupplier }) {
     });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    onAddSupplier({ id: Date.now(), ...formData });
-    setFormData({ name: "", contact: "", email: "", productsSupplied: "" });
+    await onSaveSupplier(supplierToEdit ? { ...supplierToEdit, ...formData } : formData);
     setIsOpen(false);
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white w-full max-w-lg rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Add New Supplier</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          {supplierToEdit ? "Edit Supplier" : "Add New Supplier"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -82,7 +99,7 @@ function AddSupplierModal({ isOpen, setIsOpen, onAddSupplier }) {
               type="submit"
               className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
             >
-              Add Supplier
+              {supplierToEdit ? "Save Changes" : "Add Supplier"}
             </button>
           </div>
         </form>

@@ -5,15 +5,42 @@ import CustomerTable from "../features/customers/CustomerTable";
 import AddCustomerModal from "../features/customers/AddCustomerModal";
 
 function Customers() {
-  const { customers, orders, addCustomer } = useAppData();
+  const { canAddCustomer, customers, orders, addCustomer, updateCustomer, deleteCustomer } =
+    useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone.includes(searchTerm) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  function handleEdit(customer) {
+    setSelectedCustomer(customer);
+    setIsModalOpen(true);
+  }
+
+  async function handleDelete(customerId) {
+    if (!window.confirm("Delete this customer? This cannot be undone.")) return;
+    await deleteCustomer(customerId);
+  }
+
+  async function handleSaveCustomer(customer) {
+    if (selectedCustomer) {
+      await updateCustomer(customer.id, customer);
+    } else {
+      await addCustomer(customer);
+    }
+    setSelectedCustomer(null);
+  }
+
+  function handleModalClose() {
+    setSelectedCustomer(null);
+    setIsModalOpen(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -23,12 +50,18 @@ function Customers() {
           <p className="text-gray-500 mt-1">Track customer purchase history and total spend.</p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 transition"
-        >
-          <Plus size={18} /> Add Customer
-        </button>
+        {canAddCustomer ? (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 transition"
+          >
+            <Plus size={18} /> Add Customer
+          </button>
+        ) : (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            Read-only customer access
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border">
@@ -44,12 +77,20 @@ function Customers() {
         </div>
       </div>
 
-      <CustomerTable customers={filteredCustomers} orders={orders} />
+      <CustomerTable
+        customers={filteredCustomers}
+        orders={orders}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        canEdit={canAddCustomer}
+        canDelete={canAddCustomer}
+      />
 
       <AddCustomerModal
         isOpen={isModalOpen}
-        setIsOpen={setIsModalOpen}
-        onAddCustomer={addCustomer}
+        setIsOpen={handleModalClose}
+        onSaveCustomer={handleSaveCustomer}
+        customerToEdit={selectedCustomer}
       />
     </div>
   );

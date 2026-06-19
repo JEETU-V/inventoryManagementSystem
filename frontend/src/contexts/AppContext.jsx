@@ -139,6 +139,32 @@ export function AppProvider({ children }) {
     return createdCustomer;
   };
 
+  const updateCustomer = async (customerId, updates) => {
+    const updatedCustomer = await customerApi.update(customerId, updates);
+    setCustomers((prev) =>
+      prev.map((customer) => (customer.id === customerId ? updatedCustomer : customer))
+    );
+    return updatedCustomer;
+  };
+
+  const deleteCustomer = async (customerId) => {
+    await customerApi.delete(customerId);
+    setCustomers((prev) => prev.filter((customer) => customer.id !== customerId));
+  };
+
+  const updateSupplier = async (supplierId, updates) => {
+    const updatedSupplier = await supplierApi.update(supplierId, updates);
+    setSuppliers((prev) =>
+      prev.map((supplier) => (supplier.id === supplierId ? updatedSupplier : supplier))
+    );
+    return updatedSupplier;
+  };
+
+  const deleteSupplier = async (supplierId) => {
+    await supplierApi.delete(supplierId);
+    setSuppliers((prev) => prev.filter((supplier) => supplier.id !== supplierId));
+  };
+
   const addSupplierTransaction = async (transaction) => {
     const createdTransaction = await supplierApi.createTransaction(transaction);
     setSupplierTransactions((prev) => [createdTransaction, ...prev]);
@@ -162,13 +188,24 @@ export function AppProvider({ children }) {
     return updatedOrder;
   };
 
+  const cancelOrder = async (orderId) => {
+    const cancelledOrder = await orderApi.cancel(orderId);
+    setOrders((prev) =>
+      prev.map((order) => (order.id === orderId ? cancelledOrder : order))
+    );
+    await refreshData();
+    return cancelledOrder;
+  };
+
   const computedStats = useMemo(
     () => ({
       totalProducts: products.length,
       lowStockCount: products.filter((product) => product.quantity <= product.reorderLevel).length,
+      lowStockProducts: products.filter((product) => product.quantity <= product.reorderLevel),
       totalSuppliers: suppliers.length,
       totalCustomers: customers.length,
       totalOrders: orders.length,
+      recentOrders: [...orders].slice(0, 5),
       inventoryValue: products.reduce(
         (sum, product) => sum + parseAmount(product.price) * product.quantity,
         0
@@ -201,8 +238,13 @@ export function AppProvider({ children }) {
         addSupplier,
         addSupplierTransaction,
         addCustomer,
+        updateCustomer,
+        deleteCustomer,
         addOrder,
         updateOrder,
+        cancelOrder,
+        updateSupplier,
+        deleteSupplier,
         ...currentPermissions,
         ...computedStats,
       }}

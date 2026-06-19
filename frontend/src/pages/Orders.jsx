@@ -6,7 +6,7 @@ import OrderTable from "../features/orders/OrderTable";
 import AddOrderModal from "../features/orders/AddOrderModal";
 
 function Orders() {
-  const { orders, products, customers, addOrder, updateOrder, legacyOrderMigrationRun } = useAppData();
+  const { orders, products, customers, addOrder, updateOrder, cancelOrder, legacyOrderMigrationRun } = useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -55,7 +55,11 @@ function Orders() {
         </div>
       </div>
 
-      <OrderTable orders={filteredOrders} onUpdateOrderStatus={updateOrder} />
+      <OrderTable
+        orders={filteredOrders}
+        onUpdateOrderStatus={updateOrder}
+        onCancelOrder={cancelOrder}
+      />
 
       <AddOrderModal
         isOpen={isModalOpen}

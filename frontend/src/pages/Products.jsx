@@ -30,6 +30,7 @@ function Products() {
   }
 
   function handleDelete(productId) {
+    if (!window.confirm("Delete this product? This cannot be undone.")) return;
     deleteProduct(productId);
   }
 

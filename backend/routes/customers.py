@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from sqlalchemy import or_
 
-from models import Customer, db
+from models import Customer, Order, db
 from schemas.validators import CustomerSchema, validate_payload
 from services.serializers import customer_to_dict, order_to_dict
 from utils.errors import ApiError
@@ -17,8 +17,19 @@ def list_customers():
     customers = Customer.query
     if query:
         like = f"%{query}%"
-        customers = customers.filter(or_(Customer.name.ilike(like), Customer.phone.ilike(like), Customer.email.ilike(like)))
+        customers = customers.filter(
+            or_(Customer.name.ilike(like), Customer.phone.ilike(like), Customer.email.ilike(like))
+        )
     return jsonify([customer_to_dict(customer) for customer in customers.order_by(Customer.name).all()])
+
+
+@customers_bp.get("/<int:customer_id>")
+@jwt_required()
+def get_customer(customer_id):
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        raise ApiError("Customer not found", 404)
+    return jsonify(customer_to_dict(customer))
 
 
 @customers_bp.post("")
@@ -50,6 +61,14 @@ def delete_customer(customer_id):
     customer = Customer.query.get(customer_id)
     if not customer:
         raise ApiError("Customer not found", 404)
+
+    order_count = Order.query.filter_by(customer_id=customer_id).count()
+    if order_count:
+        raise ApiError(
+            f"Cannot delete customer with {order_count} existing order(s). Cancel or reassign orders first.",
+            409,
+        )
+
     db.session.delete(customer)
     db.session.commit()
     return jsonify({"message": "Customer deleted"})
@@ -62,4 +81,3 @@ def customer_orders(customer_id):
     if not customer:
         raise ApiError("Customer not found", 404)
     return jsonify([order_to_dict(order) for order in customer.orders])
-

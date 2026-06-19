@@ -1,6 +1,8 @@
 import { useMemo } from "react";
+import { Download } from "lucide-react";
 import { useAppData } from "../contexts/AppContext";
 import { getOrderItems, parseAmount } from "../utils/orderHelpers";
+import { exportToCsv } from "../utils/exportCsv";
 
 function Profit() {
   const { products, orders, supplierTransactions } = useAppData();
@@ -77,6 +79,24 @@ function Profit() {
     };
   }, [products, orders, supplierTransactions]);
 
+  function handleExport() {
+    exportToCsv(
+      "profit-report.csv",
+      ["Product", "Purchased Qty", "Purchase Cost", "Sold Qty", "Sales Revenue", "Profit"],
+      productProfitData.map((product) => {
+        const profit = product.salesRevenue - product.purchaseCost;
+        return [
+          product.productName,
+          product.purchasedQty,
+          product.purchaseCost,
+          product.soldQty,
+          product.salesRevenue,
+          profit,
+        ];
+      })
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -86,6 +106,13 @@ function Profit() {
             Analyze purchase costs from suppliers and sales revenue from customers.
           </p>
         </div>
+        <button
+          onClick={handleExport}
+          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition"
+        >
+          <Download size={18} />
+          Export CSV
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

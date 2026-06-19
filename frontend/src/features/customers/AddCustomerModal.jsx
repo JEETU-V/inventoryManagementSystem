@@ -1,12 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-function AddCustomerModal({ isOpen, setIsOpen, onAddCustomer }) {
+function AddCustomerModal({ isOpen, setIsOpen, onSaveCustomer, customerToEdit }) {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
     address: "",
   });
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ name: "", phone: "", email: "", address: "" });
+      return;
+    }
+
+    if (customerToEdit) {
+      setFormData({
+        name: customerToEdit.name,
+        phone: customerToEdit.phone,
+        email: customerToEdit.email,
+        address: customerToEdit.address,
+      });
+    }
+  }, [isOpen, customerToEdit]);
 
   if (!isOpen) return null;
 
@@ -17,23 +33,18 @@ function AddCustomerModal({ isOpen, setIsOpen, onAddCustomer }) {
     });
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-
-    const newCustomer = {
-      id: Date.now(),
-      ...formData,
-    };
-
-    onAddCustomer(newCustomer);
-    setFormData({ name: "", phone: "", email: "", address: "" });
+    await onSaveCustomer(customerToEdit ? { ...customerToEdit, ...formData } : formData);
     setIsOpen(false);
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white w-full max-w-lg rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Add New Customer</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          {customerToEdit ? "Edit Customer" : "Add New Customer"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -88,7 +99,7 @@ function AddCustomerModal({ isOpen, setIsOpen, onAddCustomer }) {
               type="submit"
               className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
             >
-              Add Customer
+              {customerToEdit ? "Save Changes" : "Add Customer"}
             </button>
           </div>
         </form>

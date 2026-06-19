@@ -3,7 +3,7 @@ import axios from "axios";
 const TOKEN_KEY = "ims-access-token";
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || "https://inventorymanagementsystem-4nb4.onrender.com/api",
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -112,6 +112,19 @@ export const supplierApi = {
       })
       .then((response) => response.data);
   },
+  update(supplierId, supplier) {
+    return apiClient
+      .put(`/suppliers/${supplierId}`, {
+        name: supplier.name,
+        contact: supplier.contact,
+        email: supplier.email,
+        productsSupplied: supplier.productsSupplied,
+      })
+      .then((response) => response.data);
+  },
+  delete(supplierId) {
+    return apiClient.delete(`/suppliers/${supplierId}`);
+  },
   createTransaction(transaction) {
     return apiClient
       .post("/suppliers/transactions", {
@@ -136,6 +149,19 @@ export const customerApi = {
       })
       .then((response) => response.data);
   },
+  update(customerId, customer) {
+    return apiClient
+      .put(`/customers/${customerId}`, {
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: customer.address,
+      })
+      .then((response) => response.data);
+  },
+  delete(customerId) {
+    return apiClient.delete(`/customers/${customerId}`);
+  },
 };
 
 export const orderApi = {
@@ -155,4 +181,12 @@ export const orderApi = {
   update(orderId, updates) {
     return apiClient.put(`/orders/${orderId}`, updates).then((response) => response.data);
   },
+  cancel(orderId) {
+    return apiClient.post(`/orders/${orderId}/cancel`).then((response) => response.data);
+  },
 };
+
+export async function fetchDashboardSummary() {
+  const { data } = await apiClient.get("/dashboard/summary");
+  return data;
+}

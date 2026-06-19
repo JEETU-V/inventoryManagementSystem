@@ -11,24 +11,26 @@ import Profit from "./pages/Profit";
 import Sales from "./pages/Sales";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import BillGenerator from "./features/orders/BillGenerator";
+import LoadingSpinner from "./components/ui/LoadingSpinner";
 
 import MainLayout from "./components/layout/MainLayout";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isBootstrapping } = useAppData();
-  if (isBootstrapping) return null;
+  if (isBootstrapping) return <LoadingSpinner message="Loading your workspace..." />;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
 function PublicRoute({ children }) {
   const { isAuthenticated, isBootstrapping } = useAppData();
-  if (isBootstrapping) return null;
+  if (isBootstrapping) return <LoadingSpinner message="Loading..." />;
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 }
 
 function AdminRoute({ children }) {
   const { isAuthenticated, isBootstrapping, canViewProfit } = useAppData();
-  if (isBootstrapping) return null;
+  if (isBootstrapping) return <LoadingSpinner message="Loading your workspace..." />;
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -37,7 +39,7 @@ function AdminRoute({ children }) {
 
 function RootRedirect() {
   const { isAuthenticated, isBootstrapping } = useAppData();
-  if (isBootstrapping) return null;
+  if (isBootstrapping) return <LoadingSpinner message="Loading..." />;
   return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
 }
 
@@ -140,6 +142,16 @@ function App() {
               <MainLayout>
                 <Sales />
               </MainLayout>
+            </RequireAuth>
+          }
+        />
+
+        {/* Bill */}
+        <Route
+          path="/bill/:orderId"
+          element={
+            <RequireAuth>
+              <BillGenerator />
             </RequireAuth>
           }
         />

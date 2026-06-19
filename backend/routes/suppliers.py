@@ -25,6 +25,15 @@ def list_suppliers():
     return jsonify([supplier_to_dict(supplier) for supplier in suppliers.order_by(Supplier.name).all()])
 
 
+@suppliers_bp.get("/<int:supplier_id>")
+@jwt_required()
+def get_supplier(supplier_id):
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        raise ApiError("Supplier not found", 404)
+    return jsonify(supplier_to_dict(supplier))
+
+
 @suppliers_bp.post("")
 @role_required("admin")
 def create_supplier():
@@ -54,6 +63,21 @@ def delete_supplier(supplier_id):
     supplier = Supplier.query.get(supplier_id)
     if not supplier:
         raise ApiError("Supplier not found", 404)
+
+    product_count = Product.query.filter_by(supplier_id=supplier_id).count()
+    if product_count:
+        raise ApiError(
+            f"Cannot delete supplier linked to {product_count} product(s). Reassign or remove products first.",
+            409,
+        )
+
+    transaction_count = SupplierTransaction.query.filter_by(supplier_id=supplier_id).count()
+    if transaction_count:
+        raise ApiError(
+            f"Cannot delete supplier with {transaction_count} purchase record(s).",
+            409,
+        )
+
     db.session.delete(supplier)
     db.session.commit()
     return jsonify({"message": "Supplier deleted"})
@@ -62,7 +86,11 @@ def delete_supplier(supplier_id):
 @suppliers_bp.get("/transactions")
 @jwt_required()
 def list_transactions():
-    transactions = SupplierTransaction.query.order_by(SupplierTransaction.date.desc()).all()
+    supplier_id = request.args.get("supplierId", type=int)
+    transactions = SupplierTransaction.query
+    if supplier_id:
+        transactions = transactions.filter_by(supplier_id=supplier_id)
+    transactions = transactions.order_by(SupplierTransaction.date.desc()).all()
     return jsonify([supplier_transaction_to_dict(transaction) for transaction in transactions])
 
 
@@ -82,4 +110,3 @@ def create_transaction():
     adjust_stock(product, "stock_in", data["quantity"], "Supplier purchase")
     db.session.commit()
     return jsonify(supplier_transaction_to_dict(transaction)), 201
-

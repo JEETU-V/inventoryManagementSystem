@@ -27,13 +27,36 @@ def sync_category(name):
 def list_products():
     query = request.args.get("q", "").strip()
     category = request.args.get("category", "").strip()
+    low_stock_only = request.args.get("lowStock", "").lower() in {"1", "true", "yes"}
+
     products = Product.query
     if query:
         like = f"%{query}%"
-        products = products.filter(or_(Product.name.ilike(like), Product.sku.ilike(like), Product.category.ilike(like)))
+        products = products.filter(
+            or_(Product.name.ilike(like), Product.sku.ilike(like), Product.category.ilike(like))
+        )
     if category:
         products = products.filter(Product.category == category)
+    if low_stock_only:
+        products = products.filter(Product.quantity <= Product.reorder_level)
+
     return jsonify([product_to_dict(product) for product in products.order_by(Product.name).all()])
+
+
+@products_bp.get("/low-stock")
+@jwt_required()
+def low_stock_products():
+    products = Product.query.filter(Product.quantity <= Product.reorder_level).order_by(Product.quantity).all()
+    return jsonify([product_to_dict(product) for product in products])
+
+
+@products_bp.get("/<int:product_id>")
+@jwt_required()
+def get_product(product_id):
+    product = Product.query.get(product_id)
+    if not product:
+        raise ApiError("Product not found", 404)
+    return jsonify(product_to_dict(product))
 
 
 @products_bp.post("")
@@ -83,4 +106,3 @@ def delete_product(product_id):
     db.session.delete(product)
     db.session.commit()
     return jsonify({"message": "Product deleted"})
-

@@ -6,7 +6,32 @@ Inside frontend run:
 npm install tailwindcss @tailwindcss/vite
 
 ---
-Changelog (2026-05-18):
+Changelog (2026-06-18 backend):
+- CORS now uses configured origins instead of wildcard `*`.
+- Added JWT protection to bills and supplier PDF routes.
+- Disabled `/auth/seed-admin` in production; fixed `/auth/me` user lookup.
+- Added JWT error handlers and database health check on `/api/health`.
+- Safe delete guards for customers (with orders) and suppliers (with products/purchases).
+- Added GET by id for customers, suppliers, products, and orders.
+- Added order filters (`status`, `customerId`) and cancel validation for completed orders.
+- Added `/products/low-stock`, `/profit/breakdown`, enhanced dashboard/sales reports from completed orders.
+- Fixed supplier PDF upload to use proper `stock_in` inventory adjustments.
+- Bill company details and GST rate configurable via `.env`.
+- Fixed `init_db.py` missing admin `name` field.
+
+Changelog (2026-06-18):
+- Added customer and supplier edit/delete (backend APIs were already available; UI now wired up).
+- Fixed missing `/bill/:orderId` route so invoice generation works from Orders.
+- Added loading spinner during auth bootstrap instead of blank screen.
+- Added low-stock notification bell in navbar with alert count.
+- Enhanced Dashboard with total orders stat and recent orders table.
+- Enhanced Inventory page with stock overview table and out-of-stock count.
+- Added CSV export on Profit and Sales pages.
+- Added order cancel action for pending orders.
+- Added empty states across tables and delete confirmations.
+- API base URL now configurable via `VITE_API_URL` in `.env`.
+
+---
 - Added `Profit` dashboard page to show total purchased cost, sales revenue, and net profit (product-level breakdown).
 - Added supplier purchase recording (existing) used to compute purchase cost on Profit page.
 - Removed supplier `Sales` and `Profit` columns from the Suppliers page; kept `Total Purchase` and transaction history.

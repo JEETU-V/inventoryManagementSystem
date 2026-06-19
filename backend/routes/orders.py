@@ -13,8 +13,26 @@ orders_bp = Blueprint("orders", __name__)
 @orders_bp.get("")
 @jwt_required()
 def list_orders():
-    orders = Order.query.order_by(Order.date.desc(), Order.id.desc()).all()
+    status = request.args.get("status", "").strip()
+    customer_id = request.args.get("customerId", type=int)
+
+    orders = Order.query
+    if status:
+        orders = orders.filter(Order.status == status)
+    if customer_id:
+        orders = orders.filter(Order.customer_id == customer_id)
+
+    orders = orders.order_by(Order.date.desc(), Order.id.desc()).all()
     return jsonify([order_to_dict(order) for order in orders])
+
+
+@orders_bp.get("/<int:order_id>")
+@jwt_required()
+def get_order(order_id):
+    order = Order.query.get(order_id)
+    if not order:
+        raise ApiError("Order not found", 404)
+    return jsonify(order_to_dict(order))
 
 
 @orders_bp.post("")
@@ -45,7 +63,10 @@ def cancel_order(order_id):
     order = Order.query.get(order_id)
     if not order:
         raise ApiError("Order not found", 404)
+    if order.status == "Cancelled":
+        raise ApiError("Order is already cancelled", 409)
+    if order.status == "Completed":
+        raise ApiError("Completed orders cannot be cancelled. Update status manually if needed.", 409)
     update_order_status(order, "Cancelled")
     db.session.commit()
     return jsonify(order_to_dict(order))
-

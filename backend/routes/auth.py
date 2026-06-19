@@ -30,7 +30,8 @@ def logout():
 @auth_bp.get("/me")
 @jwt_required()
 def me():
-    user = User.query.get(get_jwt_identity())
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
     if not user:
         raise ApiError("User not found", 404)
     return jsonify(user_to_dict(user))
@@ -38,6 +39,9 @@ def me():
 
 @auth_bp.post("/seed-admin")
 def seed_admin():
+    if current_app.config.get("FLASK_ENV") == "production":
+        raise ApiError("Seed endpoint is disabled in production", 403)
+
     email = current_app.config["DEFAULT_ADMIN_EMAIL"].lower()
     user = User.query.filter_by(email=email).first()
     if user:
@@ -52,4 +56,3 @@ def seed_admin():
     db.session.add(user)
     db.session.commit()
     return jsonify(user_to_dict(user)), 201
-

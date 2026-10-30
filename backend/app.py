@@ -5,7 +5,7 @@ from flask_migrate import Migrate
 from sqlalchemy import text
 
 from config import Config
-from models import db
+from models import User, db
 from routes import register_blueprints
 from utils.errors import ApiError
 
@@ -49,6 +49,15 @@ def create_app(config_class=Config):
 
 
 def register_jwt_handlers(app):
+    @jwt.token_in_blocklist_loader
+    def reject_inactive_users(jwt_header, jwt_payload):
+        try:
+            user_id = int(jwt_payload["sub"])
+        except (KeyError, TypeError, ValueError):
+            return True
+        user = db.session.get(User, user_id)
+        return user is None or not user.is_active
+
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         return jsonify({"message": "Token has expired"}), 401

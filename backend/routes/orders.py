@@ -6,6 +6,7 @@ from schemas.validators import OrderSchema, OrderStatusSchema, validate_payload
 from services.order_service import create_order, update_order_status
 from services.serializers import order_to_dict
 from utils.errors import ApiError
+from utils.permissions import role_required
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -36,7 +37,7 @@ def get_order(order_id):
 
 
 @orders_bp.post("")
-@jwt_required()
+@role_required("admin", "staff")
 def add_order():
     data = validate_payload(OrderSchema, request.get_json())
     order = create_order(data)
@@ -45,7 +46,7 @@ def add_order():
 
 
 @orders_bp.put("/<int:order_id>")
-@jwt_required()
+@role_required("admin", "staff")
 def update_order(order_id):
     order = Order.query.get(order_id)
     if not order:
@@ -58,7 +59,7 @@ def update_order(order_id):
 
 
 @orders_bp.post("/<int:order_id>/cancel")
-@jwt_required()
+@role_required("admin", "staff")
 def cancel_order(order_id):
     order = Order.query.get(order_id)
     if not order:
@@ -66,7 +67,7 @@ def cancel_order(order_id):
     if order.status == "Cancelled":
         raise ApiError("Order is already cancelled", 409)
     if order.status == "Completed":
-        raise ApiError("Completed orders cannot be cancelled. Update status manually if needed.", 409)
+        raise ApiError("Completed orders cannot be cancelled", 409)
     update_order_status(order, "Cancelled")
     db.session.commit()
     return jsonify(order_to_dict(order))

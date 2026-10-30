@@ -1,28 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function AddCustomerModal({ isOpen, setIsOpen, onSaveCustomer, customerToEdit }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-  });
-
-  useEffect(() => {
-    if (!isOpen) {
-      setFormData({ name: "", phone: "", email: "", address: "" });
-      return;
-    }
-
-    if (customerToEdit) {
-      setFormData({
+  const [formData, setFormData] = useState(() => customerToEdit
+    ? {
         name: customerToEdit.name,
         phone: customerToEdit.phone,
         email: customerToEdit.email,
         address: customerToEdit.address,
-      });
-    }
-  }, [isOpen, customerToEdit]);
+      }
+    : { name: "", phone: "", email: "", address: "" });
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
@@ -35,8 +23,16 @@ function AddCustomerModal({ isOpen, setIsOpen, onSaveCustomer, customerToEdit })
 
   async function handleSubmit(event) {
     event.preventDefault();
-    await onSaveCustomer(customerToEdit ? { ...customerToEdit, ...formData } : formData);
-    setIsOpen(false);
+    setError("");
+    setIsSaving(true);
+    try {
+      await onSaveCustomer(customerToEdit ? { ...customerToEdit, ...formData } : formData);
+      setIsOpen(false);
+    } catch (saveError) {
+      setError(saveError.response?.data?.message || "Unable to save customer. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -47,6 +43,7 @@ function AddCustomerModal({ isOpen, setIsOpen, onSaveCustomer, customerToEdit })
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           <input
             type="text"
             name="name"
@@ -97,9 +94,10 @@ function AddCustomerModal({ isOpen, setIsOpen, onSaveCustomer, customerToEdit })
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+              disabled={isSaving}
+              className="px-5 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition disabled:opacity-60"
             >
-              {customerToEdit ? "Save Changes" : "Add Customer"}
+              {isSaving ? "Saving..." : customerToEdit ? "Save Changes" : "Add Customer"}
             </button>
           </div>
         </form>

@@ -6,6 +6,7 @@ from models import Customer, Order, db
 from schemas.validators import CustomerSchema, validate_payload
 from services.serializers import customer_to_dict, order_to_dict
 from utils.errors import ApiError
+from utils.permissions import role_required
 
 customers_bp = Blueprint("customers", __name__)
 
@@ -33,7 +34,7 @@ def get_customer(customer_id):
 
 
 @customers_bp.post("")
-@jwt_required()
+@role_required("admin", "staff")
 def create_customer():
     data = validate_payload(CustomerSchema, request.get_json())
     customer = Customer(**data)
@@ -43,7 +44,7 @@ def create_customer():
 
 
 @customers_bp.put("/<int:customer_id>")
-@jwt_required()
+@role_required("admin", "staff")
 def update_customer(customer_id):
     customer = Customer.query.get(customer_id)
     if not customer:
@@ -56,7 +57,7 @@ def update_customer(customer_id):
 
 
 @customers_bp.delete("/<int:customer_id>")
-@jwt_required()
+@role_required("admin")
 def delete_customer(customer_id):
     customer = Customer.query.get(customer_id)
     if not customer:

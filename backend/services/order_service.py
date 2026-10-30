@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from models import Order, OrderItem, Product, db
+from models import Customer, Order, OrderItem, Product, db
 from services.inventory_service import adjust_stock, remove_sale_for_order, sync_sale_for_completed_order
 from utils.errors import ApiError
 
@@ -16,13 +16,13 @@ def generate_order_number():
 
 
 def create_order(data):
-    if data["status"] not in VALID_STATUSES:
-        raise ApiError("Invalid order status", 422)
+    if not db.session.get(Customer, data["customer_id"]):
+        raise ApiError("Customer not found", 404)
 
     order = Order(
         order_number=generate_order_number(),
         customer_id=data["customer_id"],
-        status=data["status"],
+        status="Pending",
         date=date.today(),
     )
 
@@ -56,8 +56,7 @@ def create_order(data):
         total_quantity += quantity
         total_price += line_total
 
-        if data["status"] != "Cancelled":
-            adjust_stock(product, "stock_out", quantity, f"Order {order.order_number}")
+        adjust_stock(product, "stock_out", quantity, f"Order {order.order_number}")
 
     order.total_quantity = total_quantity
     order.total_price = total_price
@@ -72,18 +71,16 @@ def update_order_status(order, status):
         raise ApiError("Invalid order status", 422)
 
     previous_status = order.status
+    if previous_status in {"Completed", "Cancelled"} and status != previous_status:
+        raise ApiError(f"{previous_status} orders cannot be changed to another status", 409)
     if previous_status != "Cancelled" and status == "Cancelled":
         for item in order.items:
             product = Product.query.get(item.product_id)
             if product:
                 adjust_stock(product, "stock_in", item.quantity, f"Cancelled order {order.order_number}")
-    elif previous_status == "Cancelled" and status != "Cancelled":
-        for item in order.items:
-            product = Product.query.get(item.product_id)
-            if product:
-                adjust_stock(product, "stock_out", item.quantity, f"Reopened order {order.order_number}")
-
     order.status = status
-    sync_sale_for_completed_order(order)
-    remove_sale_for_order(order)
+    if status == "Completed":
+        sync_sale_for_completed_order(order)
+    else:
+        remove_sale_for_order(order)
     return order

@@ -1,28 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function AddSupplierModal({ isOpen, setIsOpen, onSaveSupplier, supplierToEdit }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
-    email: "",
-    productsSupplied: "",
-  });
-
-  useEffect(() => {
-    if (!isOpen) {
-      setFormData({ name: "", contact: "", email: "", productsSupplied: "" });
-      return;
-    }
-
-    if (supplierToEdit) {
-      setFormData({
+  const [formData, setFormData] = useState(() => supplierToEdit
+    ? {
         name: supplierToEdit.name,
         contact: supplierToEdit.contact,
         email: supplierToEdit.email,
         productsSupplied: supplierToEdit.productsSupplied,
-      });
-    }
-  }, [isOpen, supplierToEdit]);
+      }
+    : { name: "", contact: "", email: "", productsSupplied: "" });
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
@@ -35,8 +23,16 @@ function AddSupplierModal({ isOpen, setIsOpen, onSaveSupplier, supplierToEdit })
 
   async function handleSubmit(event) {
     event.preventDefault();
-    await onSaveSupplier(supplierToEdit ? { ...supplierToEdit, ...formData } : formData);
-    setIsOpen(false);
+    setError("");
+    setIsSaving(true);
+    try {
+      await onSaveSupplier(supplierToEdit ? { ...supplierToEdit, ...formData } : formData);
+      setIsOpen(false);
+    } catch (saveError) {
+      setError(saveError.response?.data?.message || "Unable to save supplier. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -47,6 +43,7 @@ function AddSupplierModal({ isOpen, setIsOpen, onSaveSupplier, supplierToEdit })
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           <input
             type="text"
             name="name"
@@ -97,9 +94,10 @@ function AddSupplierModal({ isOpen, setIsOpen, onSaveSupplier, supplierToEdit })
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+              disabled={isSaving}
+              className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60"
             >
-              {supplierToEdit ? "Save Changes" : "Add Supplier"}
+              {isSaving ? "Saving..." : supplierToEdit ? "Save Changes" : "Add Supplier"}
             </button>
           </div>
         </form>

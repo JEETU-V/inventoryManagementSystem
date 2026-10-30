@@ -18,6 +18,7 @@ def user_to_dict(user):
         "name": user.name,
         "email": user.email,
         "role": user.role,
+        "isActive": user.is_active,
     }
 
 
@@ -132,4 +133,3 @@ def sale_to_dict(sale):
             for item in sale.items
         ],
     }
-

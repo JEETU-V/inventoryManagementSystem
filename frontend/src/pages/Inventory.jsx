@@ -1,10 +1,21 @@
 import { useMemo } from "react";
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAppData } from "../contexts/AppContext";
+import { useAppData } from "../contexts/useAppData";
+import AdjustStockModal from "../features/inventory/AdjustStockModal";
 
 function Inventory() {
   const navigate = useNavigate();
-  const { products, suppliers, orders } = useAppData();
+  const {
+    products,
+    suppliers,
+    orders,
+    inventoryTransactions,
+    canAdjustInventory,
+    createInventoryTransaction,
+  } = useAppData();
+  const [isAdjustmentOpen, setIsAdjustmentOpen] = useState(false);
 
   const categories = useMemo(() => {
     return products.reduce((result, product) => {
@@ -22,8 +33,21 @@ function Inventory() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Inventory</h1>
-        <p className="text-gray-500 mt-1">Monitor stock levels, reorder alerts, and category insights.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Inventory</h1>
+            <p className="text-gray-500 mt-1">Monitor stock levels, reorder alerts, and category insights.</p>
+          </div>
+          {canAdjustInventory && (
+            <button
+              type="button"
+              onClick={() => setIsAdjustmentOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 text-white hover:bg-blue-800"
+            >
+              <Plus size={18} /> Adjust stock
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-4">
@@ -102,10 +126,49 @@ function Inventory() {
         </div>
       </div>
 
+      <section className="overflow-hidden rounded-xl border bg-white shadow-sm">
+        <div className="border-b bg-gray-50 px-6 py-5">
+          <h2 className="text-lg font-semibold text-gray-800">Stock movement history</h2>
+          <p className="mt-1 text-sm text-gray-500">See why stock levels changed and when.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left">
+            <thead className="bg-white">
+              <tr>
+                <th className="p-4">Date</th>
+                <th className="p-4">Product</th>
+                <th className="p-4">Movement</th>
+                <th className="p-4">Quantity</th>
+                <th className="p-4">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryTransactions.length === 0 ? (
+                <tr><td colSpan={5} className="p-6 text-center text-sm text-gray-500">No stock movements recorded yet.</td></tr>
+              ) : inventoryTransactions.map((transaction) => (
+                <tr key={transaction.id} className="border-t">
+                  <td className="p-4">{transaction.date}</td>
+                  <td className="p-4 font-medium">{transaction.productName}</td>
+                  <td className="p-4">{transaction.transactionType === "stock_in" ? "Stock added" : "Stock removed"}</td>
+                  <td className="p-4">{transaction.quantity}</td>
+                  <td className="p-4">{transaction.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="px-6 py-5 border-b bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-800">Stock Overview</h2>
         </div>
+        <AdjustStockModal
+          isOpen={isAdjustmentOpen}
+          onClose={() => setIsAdjustmentOpen(false)}
+          products={products}
+          onSave={createInventoryTransaction}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-gray-100">

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
-import { useAppData } from "../contexts/AppContext";
+import { useAppData } from "../contexts/useAppData";
 import { getOrderItems } from "../utils/orderHelpers";
 import OrderTable from "../features/orders/OrderTable";
 import AddOrderModal from "../features/orders/AddOrderModal";
 
 function Orders() {
-  const { orders, products, customers, addOrder, updateOrder, cancelOrder, legacyOrderMigrationRun } = useAppData();
+  const { orders, products, customers, addCustomer, addOrder, updateOrder, cancelOrder, canManageOrders, legacyOrderMigrationRun } = useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -28,12 +28,14 @@ function Orders() {
           <p className="text-gray-500 mt-1">Track sales orders, order status, and stock movement.</p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-lg hover:bg-purple-700 transition"
-        >
-          <Plus size={18} /> New Order
-        </button>
+        {canManageOrders && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-lg hover:bg-purple-700 transition"
+          >
+            <Plus size={18} /> New Order
+          </button>
+        )}
       </div>
 
       {legacyOrderMigrationRun && (
@@ -57,17 +59,20 @@ function Orders() {
 
       <OrderTable
         orders={filteredOrders}
-        onUpdateOrderStatus={updateOrder}
-        onCancelOrder={cancelOrder}
+        onUpdateOrderStatus={canManageOrders ? updateOrder : undefined}
+        onCancelOrder={canManageOrders ? cancelOrder : undefined}
       />
 
-      <AddOrderModal
-        isOpen={isModalOpen}
-        setIsOpen={setIsModalOpen}
-        products={products}
-        customers={customers}
-        onAddOrder={addOrder}
-      />
+      {canManageOrders && (
+        <AddOrderModal
+          isOpen={isModalOpen}
+          setIsOpen={setIsModalOpen}
+          products={products}
+          customers={customers}
+          onAddCustomer={addCustomer}
+          onAddOrder={addOrder}
+        />
+      )}
     </div>
   );
 }

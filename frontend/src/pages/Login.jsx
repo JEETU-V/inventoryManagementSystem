@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppData } from "../contexts/AppContext";
+import { ArrowRight, Boxes, CircleCheck, LoaderCircle, LockKeyhole } from "lucide-react";
+import { useAppData } from "../contexts/useAppData";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, login } = useAppData();
   const navigate = useNavigate();
 
@@ -24,60 +26,96 @@ function Login() {
     }
 
     setError("");
+    setIsSubmitting(true);
     try {
       await login({ email, password });
       navigate("/dashboard", { replace: true });
     } catch (error) {
       setError(error.response?.data?.message || "Unable to sign in.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Stationery Shop Login</h1>
-        <p className="text-gray-500 mb-8">Sign in to access inventory, orders, and customer management.</p>
+    <main className="login-page">
+      <section className="login-showcase">
+        <div className="login-showcase-inner">
+          <div className="login-brand">
+            <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
+            <span className="brand-copy"><strong>Stockroom</strong><small>INVENTORY STUDIO</small></span>
+          </div>
+          <div className="showcase-copy">
+            <span className="showcase-eyebrow"><span /> YOUR SHOP, IN GOOD HANDS</span>
+            <h1>Make room<br />for what’s next.</h1>
+            <p>A thoughtful space for your products, people, and the work that brings them together.</p>
+          </div>
+          <div className="showcase-illustration" aria-hidden="true">
+            <div className="illustration-glow" />
+            <div className="illustration-card illustration-card-back"><span /><span /><span /></div>
+            <div className="illustration-card illustration-card-front">
+              <div className="illustration-card-top"><span className="illustration-mark"><Boxes size={17} /></span><span className="illustration-dots">•••</span></div>
+              <div className="illustration-label">INVENTORY OVERVIEW</div>
+              <div className="illustration-number">1,284 <small>units</small></div>
+              <div className="illustration-bars"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div>
+              <div className="illustration-card-bottom"><span>Stock on hand</span><strong><CircleCheck size={13} /> Looking good</strong></div>
+            </div>
+            <span className="float-dot float-dot-one" />
+            <span className="float-dot float-dot-two" />
+          </div>
+          <div className="showcase-footnote"><span><CircleCheck size={14} /> Everything in its place</span><span>01 — 03</span></div>
+        </div>
+      </section>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="admin@example.com"
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
+      <section className="login-form-side">
+        <div className="login-form-wrap">
+          <div className="login-mobile-brand">
+            <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
+            <span className="brand-copy"><strong>Stockroom</strong><small>INVENTORY STUDIO</small></span>
+          </div>
+          <span className="login-step"><LockKeyhole size={14} /> SECURE SIGN IN</span>
+          <h2>Welcome back.</h2>
+          <p className="login-subtitle">Sign in to continue to your workspace.</p>
 
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
-          </label>
+          <form onSubmit={handleSubmit} className="login-form">
+            <label className="login-field">
+              <span>Email address</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="username"
+                placeholder="you@yourbusiness.com"
+                aria-invalid={Boolean(error)}
+              />
+            </label>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+            <label className="login-field">
+              <span>Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                aria-invalid={Boolean(error)}
+              />
+            </label>
 
-          <button
-            type="submit"
-            className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-white font-semibold hover:bg-blue-700 transition"
-          >
-            Sign In
-          </button>
-        </form>
+            {error && <p className="login-error" role="alert">{error}</p>}
 
-        <p className="text-sm text-gray-500 mt-6">
-          Use the backend admin account configured in <span className="font-semibold">.env</span>.
-        </p>
-      </div>
-    </div>
+            <button type="submit" className="login-submit" disabled={isSubmitting}>
+              {isSubmitting ? <><LoaderCircle size={17} className="loading-icon" /> Signing in…</> : <>Sign in <ArrowRight size={17} /></>}
+            </button>
+          </form>
+
+          <p className="login-security"><LockKeyhole size={13} /> Your business data stays private and secure.</p>
+        </div>
+        <footer className="login-footer"><span>Stockroom Inventory Studio</span><span>Made for the details that matter.</span></footer>
+      </section>
+    </main>
   );
 }
 

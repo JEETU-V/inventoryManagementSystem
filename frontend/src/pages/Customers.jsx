@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Search, Plus } from "lucide-react";
-import { useAppData } from "../contexts/AppContext";
+import { useAppData } from "../contexts/useAppData";
 import CustomerTable from "../features/customers/CustomerTable";
 import AddCustomerModal from "../features/customers/AddCustomerModal";
 
 function Customers() {
-  const { canAddCustomer, customers, orders, addCustomer, updateCustomer, deleteCustomer } =
+  const { canAddCustomer, canDeleteCustomers, customers, orders, addCustomer, updateCustomer, deleteCustomer } =
     useAppData();
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [pageError, setPageError] = useState("");
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -24,11 +25,18 @@ function Customers() {
   }
 
   async function handleDelete(customerId) {
-    if (!window.confirm("Delete this customer? This cannot be undone.")) return;
-    await deleteCustomer(customerId);
+    const customer = customers.find((item) => item.id === customerId);
+    if (!window.confirm(`Delete "${customer?.name || "this customer"}"? This cannot be undone.`)) return;
+    setPageError("");
+    try {
+      await deleteCustomer(customerId);
+    } catch (error) {
+      setPageError(error.response?.data?.message || "Unable to delete customer. Please try again.");
+    }
   }
 
   async function handleSaveCustomer(customer) {
+    setPageError("");
     if (selectedCustomer) {
       await updateCustomer(customer.id, customer);
     } else {
@@ -50,9 +58,14 @@ function Customers() {
           <p className="text-gray-500 mt-1">Track customer purchase history and total spend.</p>
         </div>
 
+        {pageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{pageError}</p>}
+
         {canAddCustomer ? (
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setSelectedCustomer(null);
+              setIsModalOpen(true);
+            }}
             className="flex items-center gap-2 bg-green-600 text-white px-5 py-3 rounded-lg hover:bg-green-700 transition"
           >
             <Plus size={18} /> Add Customer
@@ -83,15 +96,17 @@ function Customers() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         canEdit={canAddCustomer}
-        canDelete={canAddCustomer}
+        canDelete={canDeleteCustomers}
       />
 
-      <AddCustomerModal
-        isOpen={isModalOpen}
-        setIsOpen={handleModalClose}
-        onSaveCustomer={handleSaveCustomer}
-        customerToEdit={selectedCustomer}
-      />
+      {isModalOpen && (
+        <AddCustomerModal
+          isOpen={isModalOpen}
+          setIsOpen={handleModalClose}
+          onSaveCustomer={handleSaveCustomer}
+          customerToEdit={selectedCustomer}
+        />
+      )}
     </div>
   );
 }

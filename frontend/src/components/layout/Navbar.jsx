@@ -1,100 +1,110 @@
 import { useState } from "react";
-import { Bell, Search, UserCircle, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useAppData } from "../../contexts/AppContext";
+import { Bell, LogOut, CircleCheck, AlertTriangle } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { useAppData } from "../../contexts/useAppData";
 
 function Navbar() {
   const { user, logout, lowStockProducts, apiError } = useAppData();
   const [showAlerts, setShowAlerts] = useState(false);
+  const location = useLocation();
+  const pageName = location.pathname.split("/")[1] || "dashboard";
+  const pageLabel = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+  const initials = (user?.name || "Inventory User")
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <nav className="bg-white border-b shadow-sm px-6 py-4">
+    <header className="topbar">
       {apiError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-          {apiError}
+        <div className="api-notice" role="alert">
+          <AlertTriangle size={16} />
+          <span>{apiError}</span>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Welcome Back</h1>
-          <p className="text-sm text-gray-500">Manage your inventory efficiently</p>
-        </div>
+      <div className="topbar-context">
+        <span className="topbar-eyebrow">YOUR WORKSPACE</span>
+        <span className="topbar-divider">/</span>
+        <span className="topbar-current">{pageLabel}</span>
+      </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowAlerts((open) => !open)}
-              className="relative rounded-full p-2 transition hover:bg-gray-100"
-              title="Low stock alerts"
-            >
-              <Bell size={20} className="text-gray-600" />
-              {lowStockProducts.length > 0 && (
-                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+      <div className="topbar-actions">
+        <span className="today-label">
+          {new Intl.DateTimeFormat("en", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          }).format(new Date())}
+        </span>
+        <div className="alert-anchor">
+          <button
+            type="button"
+            onClick={() => setShowAlerts((open) => !open)}
+            className={`icon-button${showAlerts ? " is-pressed" : ""}`}
+            title="Low stock alerts"
+            aria-label={`Low stock alerts${lowStockProducts.length ? `, ${lowStockProducts.length} items` : ""}`}
+            aria-expanded={showAlerts}
+          >
+            <Bell size={18} strokeWidth={1.8} />
+            {lowStockProducts.length > 0 && <span className="alert-dot" />}
+          </button>
+
+          {showAlerts && (
+            <div className="alert-popover">
+              <div className="popover-heading">
+                <div>
+                  <strong>Stock alerts</strong>
+                  <span>
+                    {lowStockProducts.length === 0
+                      ? "Everything is looking good."
+                      : `${lowStockProducts.length} items need a little attention.`}
+                  </span>
+                </div>
+                <span className={`popover-count${lowStockProducts.length ? " has-alerts" : ""}`}>
                   {lowStockProducts.length}
                 </span>
-              )}
-            </button>
-
-            {showAlerts && (
-              <div className="absolute right-0 z-20 mt-2 w-80 rounded-xl border bg-white shadow-lg">
-                <div className="border-b px-4 py-3">
-                  <p className="font-semibold text-gray-800">Low Stock Alerts</p>
-                  <p className="text-xs text-gray-500">
-                    {lowStockProducts.length === 0
-                      ? "All products are above reorder level."
-                      : `${lowStockProducts.length} item(s) need attention.`}
-                  </p>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {lowStockProducts.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-gray-500">No alerts right now.</p>
-                  ) : (
-                    lowStockProducts.map((product) => (
-                      <Link
-                        key={product.id}
-                        to="/inventory"
-                        onClick={() => setShowAlerts(false)}
-                        className="block border-b px-4 py-3 text-sm hover:bg-gray-50 last:border-b-0"
-                      >
-                        <p className="font-medium text-gray-800">{product.name}</p>
-                        <p className="text-gray-500">
-                          {product.quantity} left — reorder at {product.reorderLevel}
-                        </p>
-                      </Link>
-                    ))
-                  )}
-                </div>
               </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 cursor-default">
-              <UserCircle size={32} className="text-gray-700" />
-              <div>
-                <p className="text-sm font-medium text-gray-800">
-                  {user?.name ?? "Inventory User"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {user?.role === "admin" ? "Administrator" : user?.role === "staff" ? "Staff" : "Viewer"}
-                </p>
+              <div className="alert-list">
+                {lowStockProducts.length === 0 ? (
+                  <div className="all-clear"><CircleCheck size={18} /> No low-stock items</div>
+                ) : (
+                  lowStockProducts.map((product) => (
+                    <Link
+                      key={product.id}
+                      to="/inventory"
+                      onClick={() => setShowAlerts(false)}
+                      className="alert-item"
+                    >
+                      <span className="alert-item-icon"><AlertTriangle size={15} /></span>
+                      <span>
+                        <strong>{product.name}</strong>
+                        <small>{product.quantity} left · reorder at {product.reorderLevel}</small>
+                      </span>
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={logout}
-              className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200 transition"
-            >
-              <LogOut size={16} />
-              Sign Out
-            </button>
-          </div>
+          )}
         </div>
+
+        <span className="topbar-separator" />
+        <div className="account-chip" title={user?.email || ""}>
+          <span className="account-avatar">{initials}</span>
+          <span className="account-copy">
+            <strong>{user?.name ?? "Inventory User"}</strong>
+            <small>{user?.role === "admin" ? "Administrator" : user?.role === "staff" ? "Staff" : "Viewer"}</small>
+          </span>
+        </div>
+        <button type="button" onClick={logout} className="logout-button" aria-label="Sign out">
+          <LogOut size={16} strokeWidth={1.8} />
+          <span>Sign out</span>
+        </button>
       </div>
-    </nav>
+    </header>
   );
 }
 

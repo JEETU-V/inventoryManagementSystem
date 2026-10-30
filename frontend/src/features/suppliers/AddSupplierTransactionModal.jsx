@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function AddSupplierTransactionModal({
   isOpen,
@@ -14,12 +14,8 @@ function AddSupplierTransactionModal({
     totalCost: "",
     date: new Date().toISOString().slice(0, 10),
   });
-
-  useEffect(() => {
-    if (!isOpen) {
-      setFormData({ supplierId: "", productId: "", quantity: 1, totalCost: "", date: new Date().toISOString().slice(0, 10) });
-    }
-  }, [isOpen]);
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
@@ -35,23 +31,31 @@ function AddSupplierTransactionModal({
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     const supplier = suppliers.find((supplier) => supplier.id === Number(formData.supplierId));
     const product = products.find((product) => product.id === Number(formData.productId));
-    if (!supplier || !product) return;
+    if (!supplier || !product || !Number.isInteger(Number(formData.quantity)) || Number(formData.quantity) < 1) {
+      setError("Choose a supplier and product, then enter a whole quantity greater than zero.");
+      return;
+    }
 
-    onAddSupplierTransaction({
-      id: Date.now(),
-      supplierId: supplier.id,
-      supplierName: supplier.name,
-      productId: product.id,
-      productName: product.name,
-      quantity: Number(formData.quantity),
-      totalCost: formData.totalCost.startsWith("₹") ? formData.totalCost : `₹${formData.totalCost}`,
-      date: formData.date,
-    });
-    setIsOpen(false);
+    setError("");
+    setIsSaving(true);
+    try {
+      await onAddSupplierTransaction({
+        supplierId: supplier.id,
+        productId: product.id,
+        quantity: Number(formData.quantity),
+        totalCost: formData.totalCost,
+        date: formData.date,
+      });
+      setIsOpen(false);
+    } catch (saveError) {
+      setError(saveError.response?.data?.message || "Unable to record this purchase.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -102,7 +106,9 @@ function AddSupplierTransactionModal({
               required
             />
             <input
-              type="text"
+              type="number"
+              min="0"
+              step="0.01"
               name="totalCost"
               value={formData.totalCost}
               onChange={handleChange}
@@ -122,18 +128,21 @@ function AddSupplierTransactionModal({
           />
 
           <div className="flex justify-end gap-3 pt-4">
+            {error && <p role="alert" className="mr-auto text-sm text-red-700">{error}</p>}
             <button
               type="button"
               onClick={() => setIsOpen(false)}
+              disabled={isSaving}
               className="px-5 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
+              disabled={isSaving}
+              className="px-5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-60"
             >
-              Save Purchase
+              {isSaving ? "Saving..." : "Save Purchase"}
             </button>
           </div>
         </form>

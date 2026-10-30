@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import AppContext from "./AppContextDefinition";
 import {
   customerApi,
   getAccessToken,
+  inventoryApi,
   loadAppData,
   loginRequest,
   logoutRequest,
@@ -12,8 +14,6 @@ import {
 } from "../services/api";
 import { parseAmount } from "../utils/orderHelpers";
 
-const AppContext = createContext(null);
-
 const rolePermissions = {
   admin: {
     canManageProducts: true,
@@ -21,6 +21,9 @@ const rolePermissions = {
     canManageOrders: true,
     canViewProfit: true,
     canAddCustomer: true,
+    canAdjustInventory: true,
+    canManageUsers: true,
+    canDeleteCustomers: true,
   },
   staff: {
     canManageProducts: false,
@@ -28,6 +31,9 @@ const rolePermissions = {
     canManageOrders: true,
     canViewProfit: false,
     canAddCustomer: true,
+    canAdjustInventory: false,
+    canManageUsers: false,
+    canDeleteCustomers: false,
   },
   viewer: {
     canManageProducts: false,
@@ -35,6 +41,9 @@ const rolePermissions = {
     canManageOrders: false,
     canViewProfit: false,
     canAddCustomer: false,
+    canAdjustInventory: false,
+    canManageUsers: false,
+    canDeleteCustomers: false,
   },
 };
 
@@ -45,6 +54,9 @@ export function AppProvider({ children }) {
   const [customers, setCustomers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [supplierTransactions, setSupplierTransactions] = useState([]);
+  const [inventoryTransactions, setInventoryTransactions] = useState([]);
+  const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [salesSummary, setSalesSummary] = useState(null);
   const [isBootstrapping, setIsBootstrapping] = useState(Boolean(getAccessToken()));
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -60,6 +72,9 @@ export function AppProvider({ children }) {
       setCustomers(data.customers);
       setOrders(data.orders);
       setSupplierTransactions(data.supplierTransactions);
+      setInventoryTransactions(data.inventoryTransactions);
+      setDashboardSummary(data.dashboard);
+      setSalesSummary(data.sales);
     } catch (error) {
       setApiError(error.response?.data?.message || "Unable to load inventory data.");
     } finally {
@@ -78,7 +93,7 @@ export function AppProvider({ children }) {
         const currentUser = await meRequest();
         setUser(currentUser);
         await refreshData();
-      } catch (error) {
+      } catch {
         await logoutRequest();
         setUser(null);
       } finally {
@@ -104,6 +119,9 @@ export function AppProvider({ children }) {
     setCustomers([]);
     setOrders([]);
     setSupplierTransactions([]);
+    setInventoryTransactions([]);
+    setDashboardSummary(null);
+    setSalesSummary(null);
   };
 
   const currentPermissions = rolePermissions[user?.role ?? "viewer"];
@@ -133,6 +151,19 @@ export function AppProvider({ children }) {
     return createdSupplier;
   };
 
+  const updateSupplier = async (supplierId, updates) => {
+    const updatedSupplier = await supplierApi.update(supplierId, updates);
+    setSuppliers((previous) =>
+      previous.map((supplier) => supplier.id === supplierId ? updatedSupplier : supplier)
+    );
+    return updatedSupplier;
+  };
+
+  const deleteSupplier = async (supplierId) => {
+    await supplierApi.delete(supplierId);
+    setSuppliers((previous) => previous.filter((supplier) => supplier.id !== supplierId));
+  };
+
   const addCustomer = async (customer) => {
     const createdCustomer = await customerApi.create(customer);
     setCustomers((prev) => [...prev, createdCustomer]);
@@ -141,28 +172,24 @@ export function AppProvider({ children }) {
 
   const updateCustomer = async (customerId, updates) => {
     const updatedCustomer = await customerApi.update(customerId, updates);
-    setCustomers((prev) =>
-      prev.map((customer) => (customer.id === customerId ? updatedCustomer : customer))
+    setCustomers((previous) =>
+      previous.map((customer) => customer.id === customerId ? updatedCustomer : customer)
     );
     return updatedCustomer;
   };
 
   const deleteCustomer = async (customerId) => {
     await customerApi.delete(customerId);
-    setCustomers((prev) => prev.filter((customer) => customer.id !== customerId));
+    setCustomers((previous) => previous.filter((customer) => customer.id !== customerId));
   };
 
-  const updateSupplier = async (supplierId, updates) => {
-    const updatedSupplier = await supplierApi.update(supplierId, updates);
-    setSuppliers((prev) =>
-      prev.map((supplier) => (supplier.id === supplierId ? updatedSupplier : supplier))
+  const createInventoryTransaction = async (transaction) => {
+    const updatedProduct = await inventoryApi.createTransaction(transaction);
+    setProducts((previous) =>
+      previous.map((product) => product.id === updatedProduct.id ? updatedProduct : product)
     );
-    return updatedSupplier;
-  };
-
-  const deleteSupplier = async (supplierId) => {
-    await supplierApi.delete(supplierId);
-    setSuppliers((prev) => prev.filter((supplier) => supplier.id !== supplierId));
+    setInventoryTransactions(await inventoryApi.listTransactions());
+    return updatedProduct;
   };
 
   const addSupplierTransaction = async (transaction) => {
@@ -190,24 +217,28 @@ export function AppProvider({ children }) {
 
   const cancelOrder = async (orderId) => {
     const cancelledOrder = await orderApi.cancel(orderId);
-    setOrders((prev) =>
-      prev.map((order) => (order.id === orderId ? cancelledOrder : order))
+    setOrders((previous) =>
+      previous.map((order) => order.id === orderId ? cancelledOrder : order)
     );
     await refreshData();
     return cancelledOrder;
   };
 
+  const lowStockProducts = useMemo(
+    () => products.filter((product) => product.quantity <= product.reorderLevel),
+    [products]
+  );
+  const recentOrders = useMemo(() => [...orders].slice(0, 5), [orders]);
+
   const computedStats = useMemo(
     () => ({
       totalProducts: products.length,
       lowStockCount: products.filter((product) => product.quantity <= product.reorderLevel).length,
-      lowStockProducts: products.filter((product) => product.quantity <= product.reorderLevel),
       totalSuppliers: suppliers.length,
       totalCustomers: customers.length,
       totalOrders: orders.length,
-      recentOrders: [...orders].slice(0, 5),
       inventoryValue: products.reduce(
-        (sum, product) => sum + parseAmount(product.price) * product.quantity,
+        (sum, product) => sum + parseAmount(product.purchasePrice) * product.quantity,
         0
       ),
     }),
@@ -231,20 +262,26 @@ export function AppProvider({ children }) {
         customers,
         orders,
         supplierTransactions,
+        inventoryTransactions,
+        dashboardSummary,
+        salesSummary,
+        lowStockProducts,
+        recentOrders,
         legacyOrderMigrationRun: false,
         addProduct,
         updateProduct,
         deleteProduct,
         addSupplier,
+        updateSupplier,
+        deleteSupplier,
         addSupplierTransaction,
         addCustomer,
         updateCustomer,
         deleteCustomer,
+        createInventoryTransaction,
         addOrder,
         updateOrder,
         cancelOrder,
-        updateSupplier,
-        deleteSupplier,
         ...currentPermissions,
         ...computedStats,
       }}
@@ -252,13 +289,4 @@ export function AppProvider({ children }) {
       {children}
     </AppContext.Provider>
   );
-}
-
-export function useAppData() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error("useAppData must be used within AppProvider");
-  }
-
-  return context;
 }

@@ -25,6 +25,7 @@ def dashboard_summary():
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(5).all()
     recent_purchases = SupplierTransaction.query.order_by(SupplierTransaction.created_at.desc()).limit(5).all()
     pending_orders = Order.query.filter(Order.status == "Pending").count()
+    profit_report = product_profit_breakdown()
 
     return {
         "totalProducts": Product.query.count(),
@@ -36,8 +37,8 @@ def dashboard_summary():
         "totalSalesValue": float(order_revenue or 0),
         "totalPurchase": money(total_purchase),
         "totalPurchaseValue": float(total_purchase or 0),
-        "totalProfit": money((order_revenue or 0) - (total_purchase or 0)),
-        "totalProfitValue": float((order_revenue or 0) - (total_purchase or 0)),
+        "totalProfit": profit_report["totalProfit"],
+        "totalProfitValue": profit_report["totalProfitValue"],
         "lowStockProducts": [product_to_dict(product) for product in low_stock_products],
         "recentTransactions": {
             "orders": [order_to_dict(order) for order in recent_orders],
@@ -117,14 +118,18 @@ def profit_summary():
     revenue = _order_revenue()
     purchase = Decimal(str(purchase_total or 0))
     revenue_amount = Decimal(str(revenue or 0))
-    profit = revenue_amount - purchase
+    cost_of_goods_sold = Decimal(str(product_profit_breakdown()["totalCostOfGoodsSoldValue"]))
+    profit = revenue_amount - cost_of_goods_sold
 
     return {
         "date": date.today().isoformat(),
         "revenue": money(revenue_amount),
         "revenueValue": float(revenue_amount),
-        "expenses": money(purchase),
-        "expensesValue": float(purchase),
+        "expenses": money(cost_of_goods_sold),
+        "expensesValue": float(cost_of_goods_sold),
+        "supplierPurchases": money(purchase),
+        "supplierPurchasesValue": float(purchase),
+        "profitMethod": "Weighted-average recorded purchase cost; product purchase price is used when no purchase history exists.",
         "profit": money(profit),
         "profitValue": float(profit),
     }
@@ -132,89 +137,78 @@ def profit_summary():
 
 def product_profit_breakdown():
     product_rows = {}
+    products = {product.id: product for product in Product.query.all()}
 
-    for product in Product.query.all():
-        product_rows[product.id] = {
-            "productId": product.id,
-            "productName": product.name,
-            "supplierId": product.supplier_id,
-            "purchasedQty": 0,
-            "purchaseCost": Decimal("0"),
-            "purchaseCostValue": 0,
-            "soldQty": 0,
-            "salesRevenue": Decimal("0"),
-            "salesRevenueValue": 0,
-            "profit": Decimal("0"),
-            "profitValue": 0,
-        }
-
-    for transaction in SupplierTransaction.query.all():
-        row = product_rows.setdefault(
-            transaction.product_id,
+    def row_for(product_id, name="", supplier_id=None):
+        return product_rows.setdefault(
+            product_id,
             {
-                "productId": transaction.product_id,
-                "productName": transaction.product.name if transaction.product else "",
-                "supplierId": transaction.supplier_id,
+                "productId": product_id,
+                "productName": name,
+                "supplierId": supplier_id,
                 "purchasedQty": 0,
                 "purchaseCost": Decimal("0"),
-                "purchaseCostValue": 0,
                 "soldQty": 0,
                 "salesRevenue": Decimal("0"),
-                "salesRevenueValue": 0,
-                "profit": Decimal("0"),
-                "profitValue": 0,
             },
+        )
+
+    for product in products.values():
+        row_for(product.id, product.name, product.supplier_id)
+
+    for transaction in SupplierTransaction.query.all():
+        row = row_for(
+            transaction.product_id,
+            transaction.product.name if transaction.product else "",
+            transaction.supplier_id,
         )
         row["purchasedQty"] += transaction.quantity
         row["purchaseCost"] += Decimal(str(transaction.total_cost or 0))
 
-    completed_items = (
-        OrderItem.query.join(Order)
-        .filter(Order.status == "Completed")
-        .all()
-    )
-    for item in completed_items:
-        row = product_rows.setdefault(
-            item.product_id,
-            {
-                "productId": item.product_id,
-                "productName": item.product_name,
-                "supplierId": item.supplier_id,
-                "purchasedQty": 0,
-                "purchaseCost": Decimal("0"),
-                "purchaseCostValue": 0,
-                "soldQty": 0,
-                "salesRevenue": Decimal("0"),
-                "salesRevenueValue": 0,
-                "profit": Decimal("0"),
-                "profitValue": 0,
-            },
-        )
+    for item in OrderItem.query.join(Order).filter(Order.status == "Completed").all():
+        row = row_for(item.product_id, item.product_name, item.supplier_id)
         row["soldQty"] += item.quantity
         row["salesRevenue"] += Decimal(str(item.total_price or 0))
 
     breakdown = []
+    total_purchase = Decimal("0")
+    total_sales = Decimal("0")
+    total_cost_of_goods_sold = Decimal("0")
     for row in product_rows.values():
-        profit = row["salesRevenue"] - row["purchaseCost"]
-        row["purchaseCostValue"] = float(row["purchaseCost"])
-        row["salesRevenueValue"] = float(row["salesRevenue"])
-        row["profitValue"] = float(profit)
-        row["purchaseCost"] = money(row["purchaseCost"])
-        row["salesRevenue"] = money(row["salesRevenue"])
-        row["profit"] = money(profit)
+        product = products.get(row["productId"])
+        average_unit_cost = (
+            row["purchaseCost"] / row["purchasedQty"]
+            if row["purchasedQty"]
+            else Decimal(str(product.purchase_price if product else 0))
+        )
+        cost_of_goods_sold = average_unit_cost * row["soldQty"]
+        gross_profit = row["salesRevenue"] - cost_of_goods_sold
+        purchase_cost = row["purchaseCost"]
+        sales_revenue = row["salesRevenue"]
+        total_purchase += purchase_cost
+        total_sales += sales_revenue
+        total_cost_of_goods_sold += cost_of_goods_sold
+        row["averageUnitCost"] = money(average_unit_cost)
+        row["costOfGoodsSold"] = money(cost_of_goods_sold)
+        row["costOfGoodsSoldValue"] = float(cost_of_goods_sold)
+        row["grossProfit"] = money(gross_profit)
+        row["grossProfitValue"] = float(gross_profit)
+        row["purchaseCost"] = money(purchase_cost)
+        row["purchaseCostValue"] = float(purchase_cost)
+        row["salesRevenue"] = money(sales_revenue)
+        row["salesRevenueValue"] = float(sales_revenue)
         breakdown.append(row)
 
     breakdown.sort(key=lambda item: item["salesRevenueValue"], reverse=True)
 
-    total_purchase = sum(item["purchaseCostValue"] for item in breakdown)
-    total_sales = sum(item["salesRevenueValue"] for item in breakdown)
-
     return {
         "totalPurchase": money(total_purchase),
-        "totalPurchaseValue": total_purchase,
+        "totalPurchaseValue": float(total_purchase),
         "totalSales": money(total_sales),
-        "totalSalesValue": total_sales,
-        "totalProfit": money(total_sales - total_purchase),
-        "totalProfitValue": total_sales - total_purchase,
+        "totalSalesValue": float(total_sales),
+        "totalCostOfGoodsSold": money(total_cost_of_goods_sold),
+        "totalCostOfGoodsSoldValue": float(total_cost_of_goods_sold),
+        "totalProfit": money(total_sales - total_cost_of_goods_sold),
+        "totalProfitValue": float(total_sales - total_cost_of_goods_sold),
         "products": breakdown,
     }

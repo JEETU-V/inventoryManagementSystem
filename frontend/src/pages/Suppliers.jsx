@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Plus, X } from "lucide-react";
-import { useAppData } from "../contexts/AppContext";
+import { useAppData } from "../contexts/useAppData";
 import SupplierTable from "../features/suppliers/SupplierTable";
 import AddSupplierModal from "../features/suppliers/AddSupplierModal";
 import AddSupplierTransactionModal from "../features/suppliers/AddSupplierTransactionModal";
@@ -24,6 +24,7 @@ function Suppliers() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState(null);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [pageError, setPageError] = useState("");
 
   const filteredSuppliers = suppliers.filter((supplier) =>
     [supplier.name, supplier.contact, supplier.email, supplier.productsSupplied]
@@ -64,11 +65,18 @@ function Suppliers() {
   }
 
   async function handleDelete(supplierId) {
-    if (!window.confirm("Delete this supplier? This cannot be undone.")) return;
-    await deleteSupplier(supplierId);
+    const supplier = suppliers.find((item) => item.id === supplierId);
+    if (!window.confirm(`Delete "${supplier?.name || "this supplier"}"? This cannot be undone.`)) return;
+    setPageError("");
+    try {
+      await deleteSupplier(supplierId);
+    } catch (error) {
+      setPageError(error.response?.data?.message || "Unable to delete supplier. Please try again.");
+    }
   }
 
   async function handleSaveSupplier(supplier) {
+    setPageError("");
     if (selectedSupplier) {
       await updateSupplier(supplier.id, supplier);
     } else {
@@ -94,6 +102,8 @@ function Suppliers() {
           <p className="text-gray-500 mt-1">Manage supplier purchases and purchase history.</p>
         </div>
 
+        {pageError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{pageError}</p>}
+
         <div className="flex flex-wrap gap-3">
           {canManageSuppliers ? (
             <>
@@ -104,7 +114,10 @@ function Suppliers() {
                 <Plus size={18} /> Record Purchase
               </button>
               <button
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setSelectedSupplier(null);
+                  setIsModalOpen(true);
+                }}
                 className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-3 rounded-lg hover:bg-indigo-700 transition"
               >
                 <Plus size={18} /> Add Supplier
@@ -158,20 +171,24 @@ function Suppliers() {
         <SupplierTransactionTable transactions={supplierTransactions} />
       </div>
 
-      <AddSupplierModal
-        isOpen={isModalOpen}
-        setIsOpen={handleModalClose}
-        onSaveSupplier={handleSaveSupplier}
-        supplierToEdit={selectedSupplier}
-      />
+      {isModalOpen && (
+        <AddSupplierModal
+          isOpen={isModalOpen}
+          setIsOpen={handleModalClose}
+          onSaveSupplier={handleSaveSupplier}
+          supplierToEdit={selectedSupplier}
+        />
+      )}
 
-      <AddSupplierTransactionModal
-        isOpen={isTransactionModalOpen}
-        setIsOpen={setIsTransactionModalOpen}
-        suppliers={suppliers}
-        products={products}
-        onAddSupplierTransaction={addSupplierTransaction}
-      />
+      {isTransactionModalOpen && (
+        <AddSupplierTransactionModal
+          isOpen={isTransactionModalOpen}
+          setIsOpen={setIsTransactionModalOpen}
+          suppliers={suppliers}
+          products={products}
+          onAddSupplierTransaction={addSupplierTransaction}
+        />
+      )}
 
       {isPdfModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

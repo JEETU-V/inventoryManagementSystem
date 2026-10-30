@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { AppProvider, useAppData } from "./contexts/AppContext";
+import { AppProvider } from "./contexts/AppContext";
+import { useAppData } from "./contexts/useAppData";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Products from "./pages/Products";
@@ -11,6 +12,7 @@ import Profit from "./pages/Profit";
 import Sales from "./pages/Sales";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Users from "./pages/Users";
 import BillGenerator from "./features/orders/BillGenerator";
 import LoadingSpinner from "./components/ui/LoadingSpinner";
 
@@ -129,6 +131,18 @@ function App() {
             <AdminRoute>
               <MainLayout>
                 <Profit />
+              </MainLayout>
+            </AdminRoute>
+          }
+        />
+
+        {/* Team access */}
+        <Route
+          path="/users"
+          element={
+            <AdminRoute>
+              <MainLayout>
+                <Users />
               </MainLayout>
             </AdminRoute>
           }

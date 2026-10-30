@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiClient } from "../../services/api";
-import { Printer, Download, ArrowLeft } from "lucide-react";
+import { Printer, ArrowLeft } from "lucide-react";
 import "./BillGenerator.css";
 
 export default function BillGenerator() {
@@ -11,38 +11,32 @@ export default function BillGenerator() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchBill();
-  }, [orderId]);
+    let active = true;
+    Promise.resolve()
+      .then(() => {
+        if (!active) return null;
+        setLoading(true);
+        return apiClient.get(`/bills/${orderId}`);
+      })
+      .then((response) => {
+        if (!active || !response) return;
+        setBill(response.data);
+        setError(null);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.response?.data?.message || "Failed to load bill");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  const fetchBill = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get(`/bills/${orderId}`);
-      setBill(response.data);
-      setError(null);
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to load bill");
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
 
   const handlePrint = () => {
     window.print();
-  };
-
-  const handleDownloadPDF = () => {
-    // This would require a library like html2pdf
-    const element = document.getElementById("bill-content");
-    const opt = {
-      margin: 10,
-      filename: `Bill_${bill.billNumber}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
-    };
-    // html2pdf().set(opt).save();
-    alert("PDF download feature coming soon!");
   };
 
   if (loading) {
@@ -66,12 +60,10 @@ export default function BillGenerator() {
         >
           <ArrowLeft size={16} /> Back to Orders
         </Link>
-        <button className="btn-print" onClick={handlePrint}>
-          <Printer size={18} /> Print
+        <button className="btn-download" onClick={handlePrint}>
+          <Printer size={18} /> Print / Save as PDF
         </button>
-        <button className="btn-download" onClick={handleDownloadPDF}>
-          <Download size={18} /> Download PDF
-        </button>
+        <span className="text-sm text-slate-500">Choose “Save as PDF” in the print dialog.</span>
       </div>
 
       <div id="bill-content" className="bill-content">
@@ -133,7 +125,7 @@ export default function BillGenerator() {
             <span>₹{bill.subtotal.toFixed(2)}</span>
           </div>
           <div className="totals-row">
-            <span>Tax (18% GST):</span>
+            <span>Tax ({bill.gstRatePercent}% GST):</span>
             <span>₹{bill.tax.toFixed(2)}</span>
           </div>
           <div className="totals-row total">

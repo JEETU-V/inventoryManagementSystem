@@ -35,6 +35,7 @@ def _build_bill(order):
         "items": [],
         "subtotal": 0,
         "tax": 0,
+        "gstRatePercent": 0,
         "total": 0,
         "company": _company_info(),
     }
@@ -57,6 +58,7 @@ def _build_bill(order):
 
     bill_data["subtotal"] = float(subtotal)
     bill_data["tax"] = float(tax)
+    bill_data["gstRatePercent"] = float(gst_rate * 100)
     bill_data["total"] = float(total)
     return bill_data
 

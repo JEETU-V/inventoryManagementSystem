@@ -8,6 +8,8 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
   const navigate = useNavigate();
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [statusDraft, setStatusDraft] = useState("Pending");
+  const [actionError, setActionError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const startEditing = (order) => {
     setEditingOrderId(order.id);
@@ -18,11 +20,18 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
     setEditingOrderId(null);
   };
 
-  const saveStatus = (orderId) => {
-    if (onUpdateOrderStatus) {
-      onUpdateOrderStatus(orderId, { status: statusDraft });
+  const saveStatus = async (orderId) => {
+    if (!onUpdateOrderStatus) return;
+    setActionError("");
+    setIsSaving(true);
+    try {
+      await onUpdateOrderStatus(orderId, { status: statusDraft });
+      setEditingOrderId(null);
+    } catch (error) {
+      setActionError(error.response?.data?.message || "Unable to update order status.");
+    } finally {
+      setIsSaving(false);
     }
-    setEditingOrderId(null);
   };
 
   const handleGenerateBill = (orderId) => {
@@ -31,13 +40,21 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Cancel this order? Stock will be restored if applicable.")) return;
-    if (onCancelOrder) {
+    if (!onCancelOrder) return;
+    setActionError("");
+    setIsSaving(true);
+    try {
       await onCancelOrder(orderId);
+    } catch (error) {
+      setActionError(error.response?.data?.message || "Unable to cancel order.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      {actionError && <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{actionError}</p>}
       <table className="w-full">
         <thead className="bg-gray-50">
           <tr className="text-left">
@@ -96,11 +113,11 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
                       >
                         <option value="Pending">Pending</option>
                         <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
                       </select>
                       <button
                         type="button"
                         onClick={() => saveStatus(order.id)}
+                        disabled={isSaving}
                         className="inline-flex items-center gap-1 rounded-lg bg-green-600 text-white px-3 py-2 text-sm hover:bg-green-700"
                       >
                         <Check size={14} /> Save
@@ -126,7 +143,7 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
                       >
                         {order.status}
                       </span>
-                      {order.status !== "Cancelled" && (
+                      {order.status === "Pending" && onUpdateOrderStatus && (
                         <button
                           type="button"
                           onClick={() => startEditing(order)}
@@ -153,6 +170,7 @@ function OrderTable({ orders, onUpdateOrderStatus, onCancelOrder }) {
                     {order.status === "Pending" && onCancelOrder && (
                       <button
                         onClick={() => handleCancelOrder(order.id)}
+                        disabled={isSaving}
                         className="inline-flex items-center gap-1 px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm rounded transition"
                         title="Cancel order"
                       >

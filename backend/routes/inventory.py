@@ -7,6 +7,7 @@ from schemas.validators import InventoryTransactionSchema, validate_payload
 from services.inventory_service import adjust_stock
 from services.serializers import inventory_transaction_to_dict, product_to_dict
 from utils.errors import ApiError
+from utils.permissions import role_required
 
 inventory_bp = Blueprint("inventory", __name__)
 
@@ -50,7 +51,7 @@ def list_inventory_transactions():
 
 
 @inventory_bp.post("/transactions")
-@jwt_required()
+@role_required("admin")
 def create_inventory_transaction():
     data = validate_payload(InventoryTransactionSchema, request.get_json())
     product = Product.query.get(data["product_id"])

@@ -50,12 +50,15 @@ export async function meRequest() {
 }
 
 export async function loadAppData() {
-  const [products, suppliers, customers, orders, supplierTransactions] = await Promise.all([
+  const [products, suppliers, customers, orders, supplierTransactions, inventoryTransactions, dashboard, sales] = await Promise.all([
     apiClient.get("/products"),
     apiClient.get("/suppliers"),
     apiClient.get("/customers"),
     apiClient.get("/orders"),
     apiClient.get("/suppliers/transactions"),
+    apiClient.get("/inventory/transactions"),
+    apiClient.get("/dashboard/summary"),
+    apiClient.get("/sales/summary"),
   ]);
 
   return {
@@ -64,6 +67,9 @@ export async function loadAppData() {
     customers: customers.data,
     orders: orders.data,
     supplierTransactions: supplierTransactions.data,
+    inventoryTransactions: inventoryTransactions.data,
+    dashboard: dashboard.data,
+    sales: sales.data,
   };
 }
 
@@ -164,12 +170,27 @@ export const customerApi = {
   },
 };
 
+export const inventoryApi = {
+  async listTransactions() {
+    const { data } = await apiClient.get("/inventory/transactions");
+    return data;
+  },
+  async createTransaction(transaction) {
+    const { data } = await apiClient.post("/inventory/transactions", {
+      productId: Number(transaction.productId),
+      transactionType: transaction.transactionType,
+      quantity: Number(transaction.quantity),
+      reason: transaction.reason.trim(),
+    });
+    return data;
+  },
+};
+
 export const orderApi = {
   create(order) {
     return apiClient
       .post("/orders", {
         customerId: order.customerId,
-        status: order.status,
         items: order.items.map((item) => ({
           productId: item.productId,
           quantity: Number(item.quantity),
@@ -183,6 +204,21 @@ export const orderApi = {
   },
   cancel(orderId) {
     return apiClient.post(`/orders/${orderId}/cancel`).then((response) => response.data);
+  },
+};
+
+export const userApi = {
+  async list() {
+    const { data } = await apiClient.get("/users");
+    return data;
+  },
+  async create(user) {
+    const { data } = await apiClient.post("/users", user);
+    return data;
+  },
+  async update(userId, updates) {
+    const { data } = await apiClient.put(`/users/${userId}`, updates);
+    return data;
   },
 };
 

@@ -1,51 +1,13 @@
-import { useMemo } from "react";
 import { Download } from "lucide-react";
-import { useAppData } from "../contexts/AppContext";
-import { getOrderItems, parseAmount } from "../utils/orderHelpers";
+import { useAppData } from "../contexts/useAppData";
 import { exportToCsv } from "../utils/exportCsv";
 
 function Sales() {
-  const { orders } = useAppData();
-
-  const completedOrders = useMemo(
-    () => orders.filter((order) => order.status === "Completed"),
-    [orders]
-  );
-
-  const { totalSales, totalOrders, averageOrderValue, topProducts } = useMemo(() => {
-    const orderCount = completedOrders.length;
-    const sales = completedOrders.reduce(
-      (sum, order) => sum + parseAmount(order.totalPrice),
-      0
-    );
-    const avgValue = orderCount ? sales / orderCount : 0;
-
-    const productMap = new Map();
-    completedOrders.forEach((order) => {
-      getOrderItems(order).forEach((item) => {
-        const existing = productMap.get(item.productId) || {
-          productId: item.productId,
-          productName: item.productName,
-          quantitySold: 0,
-          revenue: 0,
-        };
-        existing.quantitySold += item.quantity;
-        existing.revenue += parseAmount(item.totalPrice);
-        productMap.set(item.productId, existing);
-      });
-    });
-
-    const topProductsList = Array.from(productMap.values())
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    return {
-      totalSales: sales,
-      totalOrders: orderCount,
-      averageOrderValue: avgValue,
-      topProducts: topProductsList,
-    };
-  }, [completedOrders]);
+  const { salesSummary } = useAppData();
+  const totalSales = salesSummary?.totalSalesValue ?? 0;
+  const totalOrders = salesSummary?.completedOrders ?? 0;
+  const averageOrderValue = salesSummary?.averageOrderValueRaw ?? 0;
+  const topProducts = salesSummary?.topProducts ?? [];
 
   function handleExport() {
     exportToCsv(
@@ -54,7 +16,7 @@ function Sales() {
       topProducts.map((product) => [
         product.productName,
         product.quantitySold,
-        product.revenue,
+        product.revenueValue,
       ])
     );
   }
@@ -84,12 +46,12 @@ function Sales() {
         </div>
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-sm font-medium text-gray-500">Total Sales</h2>
-          <p className="text-3xl font-bold text-gray-800 mt-3">₹{totalSales.toLocaleString("en-IN")}</p>
+          <p className="text-3xl font-bold text-gray-800 mt-3">{salesSummary?.totalSales ?? `₹${totalSales.toLocaleString("en-IN")}`}</p>
           <p className="text-sm text-gray-500 mt-2">Total revenue from completed customer orders.</p>
         </div>
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-sm font-medium text-gray-500">Average Order Value</h2>
-          <p className="text-3xl font-bold text-gray-800 mt-3">₹{averageOrderValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
+          <p className="text-3xl font-bold text-gray-800 mt-3">{salesSummary?.averageOrderValue ?? `₹${averageOrderValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}</p>
           <p className="text-sm text-gray-500 mt-2">Average revenue per completed order.</p>
         </div>
       </div>
@@ -121,7 +83,7 @@ function Sales() {
                   <tr key={product.productId} className="border-t hover:bg-gray-50 transition">
                     <td className="p-4 font-medium text-gray-800">{product.productName}</td>
                     <td className="p-4">{product.quantitySold}</td>
-                    <td className="p-4">₹{product.revenue.toLocaleString("en-IN")}</td>
+                    <td className="p-4">{product.revenue}</td>
                   </tr>
                 ))
               )}

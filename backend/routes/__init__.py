@@ -9,6 +9,7 @@ from .sales import sales_bp
 from .suppliers import suppliers_bp
 from .bills import bills_bp
 from .supplier_pdf import supplier_pdf_bp
+from .users import users_bp
 
 
 def register_blueprints(app):
@@ -23,4 +24,4 @@ def register_blueprints(app):
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
     app.register_blueprint(bills_bp, url_prefix="/api/bills")
     app.register_blueprint(supplier_pdf_bp, url_prefix="/api/supplier-pdf")
-
+    app.register_blueprint(users_bp, url_prefix="/api/users")

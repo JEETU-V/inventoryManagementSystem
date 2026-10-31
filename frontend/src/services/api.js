@@ -3,7 +3,7 @@ import axios from "axios";
 const TOKEN_KEY = "ims-access-token";
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://inventorymanagementsystem-4nb4.onrender.com/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
 apiClient.interceptors.request.use((config) => {

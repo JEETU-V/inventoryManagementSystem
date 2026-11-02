@@ -8,6 +8,10 @@ A full-stack inventory management application for managing products, suppliers, 
 
 The React frontend communicates with a Flask REST API. The backend organizes API routes, business services, data validation, and SQLAlchemy models; SQLite is used by default for local development, with an optional configured database URL.
 
+## Demo
+
+[Watch or download the demo video](demo-video/inventory-management-demo.mp4).
+
 ## Features
 
 - Dashboard with inventory and sales summaries

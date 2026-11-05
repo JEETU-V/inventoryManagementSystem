@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -14,7 +16,13 @@ migrate = Migrate()
 
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app_options = {}
+    if os.getenv("VERCEL"):
+        app_options["instance_path"] = os.getenv(
+            "FLASK_INSTANCE_PATH",
+            "/tmp/inventory-management-system",
+        )
+    app = Flask(__name__, **app_options)
     app.config.from_object(config_class)
 
     db.init_app(app)

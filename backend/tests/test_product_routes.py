@@ -4,7 +4,7 @@ from decimal import Decimal
 from flask_jwt_extended import create_access_token
 
 from app import create_app
-from models import InventoryTransaction, Product, User, db
+from models import Business, BusinessMembership, InventoryTransaction, Product, User, db
 from utils.security import hash_password
 
 
@@ -31,7 +31,15 @@ class ProductRouteTests(unittest.TestCase):
             password_hash=hash_password("test-password"),
             role="admin",
         )
-        db.session.add(self.admin)
+        business = Business(
+            name="Test Shop",
+            slug="test-shop",
+            created_by=self.admin,
+        )
+        self.admin.memberships.append(
+            BusinessMembership(business=business, role="owner")
+        )
+        db.session.add_all([self.admin, business])
         db.session.commit()
         token = create_access_token(
             identity=str(self.admin.id),
@@ -132,6 +140,7 @@ class ProductRouteTests(unittest.TestCase):
             quantity=5,
             price=Decimal("2.00"),
             reorder_level=1,
+            business_id=self.admin.memberships[0].business_id,
         )
         referenced = Product(
             name="Pencil",
@@ -141,6 +150,7 @@ class ProductRouteTests(unittest.TestCase):
             quantity=5,
             price=Decimal("2.00"),
             reorder_level=1,
+            business_id=self.admin.memberships[0].business_id,
         )
         db.session.add_all([removable, referenced])
         db.session.flush()
@@ -150,6 +160,7 @@ class ProductRouteTests(unittest.TestCase):
                 transaction_type="stock_in",
                 quantity=5,
                 reason="Test purchase",
+                business_id=self.admin.memberships[0].business_id,
             )
         )
         db.session.commit()
@@ -167,6 +178,59 @@ class ProductRouteTests(unittest.TestCase):
         self.assertEqual(protected.status_code, 409)
         self.assertIn("inventory", protected.json["message"])
         self.assertIsNotNone(db.session.get(Product, referenced.id))
+
+    def test_product_data_is_isolated_between_businesses(self):
+        other_business = Business(
+            name="Other Shop",
+            slug="other-shop",
+            created_by=self.admin,
+        )
+        db.session.add(other_business)
+        db.session.flush()
+        self.admin.memberships.append(
+            BusinessMembership(business=other_business, role="owner")
+        )
+        other_business_product = Product(
+            business_id=other_business.id,
+            name="Other notebook",
+            sku="OTHER-NOTE-1",
+            category="Paper",
+            purchase_price=Decimal("3.00"),
+            quantity=7,
+            price=Decimal("5.00"),
+            reorder_level=2,
+        )
+        db.session.add(other_business_product)
+        db.session.commit()
+        own_business_id = next(
+            membership.business_id
+            for membership in self.admin.memberships
+            if membership.business_id != other_business.id
+        )
+        own_headers = {**self.headers, "X-Business-Id": str(own_business_id)}
+
+        hidden = self.client.get(
+            f"/api/products/{other_business_product.id}",
+            headers=own_headers,
+        )
+        self.assertEqual(hidden.status_code, 404)
+
+        own_products = self.client.get("/api/products", headers=own_headers)
+        self.assertEqual(
+            [item["sku"] for item in own_products.json],
+            [],
+        )
+
+        other_headers = {
+            **self.headers,
+            "X-Business-Id": str(other_business.id),
+        }
+        visible = self.client.get(
+            f"/api/products/{other_business_product.id}",
+            headers=other_headers,
+        )
+        self.assertEqual(visible.status_code, 200)
+        self.assertEqual(visible.json["sku"], "OTHER-NOTE-1")
 
 
 if __name__ == "__main__":

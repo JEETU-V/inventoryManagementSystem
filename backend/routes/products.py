@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
 from sqlalchemy import func, or_
 
 from models import (
@@ -18,6 +17,7 @@ from services.serializers import product_to_dict
 from services.inventory_service import adjust_stock
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.tenancy import business_required
 
 products_bp = Blueprint("products", __name__)
 
@@ -34,7 +34,7 @@ def sync_category(name):
 
 
 @products_bp.get("")
-@jwt_required()
+@business_required
 def list_products():
     query = request.args.get("q", "").strip()
     category = request.args.get("category", "").strip()
@@ -55,16 +55,16 @@ def list_products():
 
 
 @products_bp.get("/low-stock")
-@jwt_required()
+@business_required
 def low_stock_products():
     products = Product.query.filter(Product.quantity <= Product.reorder_level).order_by(Product.quantity).all()
     return jsonify([product_to_dict(product) for product in products])
 
 
 @products_bp.get("/<int:product_id>")
-@jwt_required()
+@business_required
 def get_product(product_id):
-    product = Product.query.get(product_id)
+    product = Product.query.filter_by(id=product_id).first()
     if not product:
         raise ApiError("Product not found", 404)
     return jsonify(product_to_dict(product))
@@ -76,7 +76,7 @@ def create_product():
     data = validate_payload(ProductSchema, request.get_json())
     if Product.query.filter(func.lower(Product.sku) == data["sku"].lower()).first():
         raise ApiError("A product with this SKU already exists.", 409, {"sku": ["SKU must be unique."]})
-    if data.get("supplier_id") and not Supplier.query.get(data["supplier_id"]):
+    if data.get("supplier_id") and not Supplier.query.filter_by(id=data["supplier_id"]).first():
         raise ApiError("Supplier not found.", 422, {"supplierId": ["Choose an existing supplier."]})
 
     category = sync_category(data.get("category"))
@@ -102,7 +102,7 @@ def create_product():
 @products_bp.put("/<int:product_id>")
 @role_required("admin")
 def update_product(product_id):
-    product = Product.query.get(product_id)
+    product = Product.query.filter_by(id=product_id).first()
     if not product:
         raise ApiError("Product not found", 404)
     data = validate_payload(ProductSchema, request.get_json(), partial=True)
@@ -117,7 +117,7 @@ def update_product(product_id):
         Product.id != product_id,
     ).first():
         raise ApiError("A product with this SKU already exists.", 409, {"sku": ["SKU must be unique."]})
-    if data.get("supplier_id") and not Supplier.query.get(data["supplier_id"]):
+    if data.get("supplier_id") and not Supplier.query.filter_by(id=data["supplier_id"]).first():
         raise ApiError("Supplier not found.", 422, {"supplierId": ["Choose an existing supplier."]})
 
     if "category" in data:
@@ -133,7 +133,7 @@ def update_product(product_id):
 @products_bp.delete("/<int:product_id>")
 @role_required("admin")
 def delete_product(product_id):
-    product = Product.query.get(product_id)
+    product = Product.query.filter_by(id=product_id).first()
     if not product:
         raise ApiError("Product not found", 404)
 

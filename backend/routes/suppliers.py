@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
 from sqlalchemy import or_
 
 from models import Product, Supplier, SupplierTransaction, db
@@ -8,12 +7,13 @@ from services.inventory_service import adjust_stock
 from services.serializers import supplier_to_dict, supplier_transaction_to_dict
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.tenancy import business_required
 
 suppliers_bp = Blueprint("suppliers", __name__)
 
 
 @suppliers_bp.get("")
-@jwt_required()
+@business_required
 def list_suppliers():
     query = request.args.get("q", "").strip()
     suppliers = Supplier.query
@@ -26,9 +26,9 @@ def list_suppliers():
 
 
 @suppliers_bp.get("/<int:supplier_id>")
-@jwt_required()
+@business_required
 def get_supplier(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
     return jsonify(supplier_to_dict(supplier))
@@ -47,7 +47,7 @@ def create_supplier():
 @suppliers_bp.put("/<int:supplier_id>")
 @role_required("admin")
 def update_supplier(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
     data = validate_payload(SupplierSchema, request.get_json(), partial=True)
@@ -60,7 +60,7 @@ def update_supplier(supplier_id):
 @suppliers_bp.delete("/<int:supplier_id>")
 @role_required("admin")
 def delete_supplier(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
 
@@ -84,7 +84,7 @@ def delete_supplier(supplier_id):
 
 
 @suppliers_bp.get("/transactions")
-@jwt_required()
+@business_required
 def list_transactions():
     supplier_id = request.args.get("supplierId", type=int)
     transactions = SupplierTransaction.query
@@ -98,10 +98,10 @@ def list_transactions():
 @role_required("admin")
 def create_transaction():
     data = validate_payload(SupplierTransactionSchema, request.get_json())
-    product = Product.query.get(data["product_id"])
+    product = Product.query.filter_by(id=data["product_id"]).first()
     if not product:
         raise ApiError("Product not found", 404)
-    supplier = Supplier.query.get(data["supplier_id"])
+    supplier = Supplier.query.filter_by(id=data["supplier_id"]).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
 

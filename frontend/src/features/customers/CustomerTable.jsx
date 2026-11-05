@@ -1,9 +1,9 @@
 import { Fragment, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { getOrderItems, parseAmount } from "../../utils/orderHelpers";
 import EmptyState from "../../components/ui/EmptyState";
 
-function CustomerTable({ customers, orders, onEdit, onDelete, canEdit = true, canDelete = true }) {
+function CustomerTable({ customers, orders, onEdit, onDelete, onActivatePortal, canEdit = true, canDelete = true }) {
   const [expandedCustomer, setExpandedCustomer] = useState(null);
 
   function customerOrders(customerId) {
@@ -30,7 +30,7 @@ function CustomerTable({ customers, orders, onEdit, onDelete, canEdit = true, ca
             <th className="p-4">Total Purchase</th>
             <th className="p-4">Orders</th>
             <th className="p-4">History</th>
-            {(canEdit || canDelete) && <th className="p-4">Actions</th>}
+            {(canEdit || canDelete || onActivatePortal) && <th className="p-4">Actions</th>}
           </tr>
         </thead>
 
@@ -65,9 +65,20 @@ function CustomerTable({ customers, orders, onEdit, onDelete, canEdit = true, ca
                         {isExpanded ? "Hide" : "View"}
                       </button>
                     </td>
-                    {(canEdit || canDelete) && (
+                    {(canEdit || canDelete || onActivatePortal) && (
                       <td className="p-4">
                         <div className="flex gap-3">
+                          {onActivatePortal && !customer.hasPortalAccount && (
+                            <button
+                              type="button"
+                              onClick={() => onActivatePortal(customer)}
+                              className="text-emerald-700 hover:text-emerald-900"
+                              title="Activate customer portal access"
+                              aria-label={`Activate customer portal access for ${customer.name}`}
+                            >
+                              <KeyRound size={18} />
+                            </button>
+                          )}
                           {canEdit && (
                             <button
                               type="button"
@@ -94,7 +105,7 @@ function CustomerTable({ customers, orders, onEdit, onDelete, canEdit = true, ca
                   </tr>
                   {isExpanded && (
                     <tr className="bg-slate-50">
-                      <td colSpan={canEdit || canDelete ? 7 : 6} className="p-4">
+                      <td colSpan={canEdit || canDelete || onActivatePortal ? 7 : 6} className="p-4">
                         <div className="space-y-3">
                           <h3 className="text-sm font-semibold text-gray-800">
                             Past Orders ({ordersForCustomer.length})

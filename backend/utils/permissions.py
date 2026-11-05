@@ -1,21 +1,22 @@
 from functools import wraps
 
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
-
-from models import User, db
 from utils.errors import ApiError
+from utils.tenancy import activate_business_for_request
 
 
 def role_required(*roles):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            verify_jwt_in_request()
-            user_id = int(get_jwt_identity())
-            user = db.session.get(User, user_id)
-            if not user or not user.is_active:
-                raise ApiError("Active user account required", 403)
-            if user.role not in roles:
+            _, membership = activate_business_for_request()
+            allowed_membership_roles = set()
+            if "admin" in roles:
+                allowed_membership_roles.update({"owner", "manager"})
+            if "staff" in roles:
+                allowed_membership_roles.update({"owner", "manager", "staff"})
+            if "viewer" in roles:
+                allowed_membership_roles.update({"owner", "manager", "staff", "viewer"})
+            if membership.role not in allowed_membership_roles:
                 raise ApiError("Insufficient permissions", 403)
             return fn(*args, **kwargs)
 

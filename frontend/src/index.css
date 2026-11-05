@@ -185,6 +185,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .topbar-divider { color: #d3d4d9; font-size: 0.75rem; }
 .topbar-current { color: #434550; font-size: 0.76rem; font-weight: 620; }
 .topbar-actions { display: flex; align-items: center; gap: 1rem; }
+.business-switcher { display: inline-flex; align-items: center; gap: 0.4rem; color: #64736f; }
+.business-switcher select {
+  max-width: 13rem;
+  padding: 0.4rem 1.65rem 0.4rem 0.5rem;
+  color: #343840;
+  border: 1px solid #e6e8e8;
+  border-radius: 0.55rem;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 620;
+}
+.business-controls { position: relative; display: inline-flex; align-items: center; gap: 0.35rem; }
+.add-business-button { display: grid; width: 1.85rem; height: 1.85rem; place-items: center; color: #64736f; border: 1px solid #e6e8e8; border-radius: 0.55rem; background: #fff; cursor: pointer; }
+.add-business-button:hover { color: #405e5a; border-color: #b9cac5; }
+.business-create-popover { position: absolute; top: calc(100% + 0.7rem); right: 0; z-index: 40; display: grid; width: 16rem; gap: 0.7rem; padding: 1rem; border: 1px solid #e7e8eb; border-radius: 0.85rem; background: #fff; box-shadow: 0 0.8rem 2rem rgb(24 26 39 / 12%); }
+.business-create-popover > strong { color: #343840; font-size: 0.78rem; }
+.business-create-popover label { display: grid; gap: 0.25rem; color: #777984; font-size: 0.64rem; }
+.business-create-popover input, .business-create-popover select { min-width: 0; padding: 0.45rem 0.55rem; color: #343840; border: 1px solid #e4e5e9; border-radius: 0.45rem; background: #fff; font-size: 0.7rem; }
+.business-create-popover p { margin: 0; color: #ae525b; font-size: 0.65rem; }
+.business-create-popover > button { padding: 0.5rem; color: #fff; border: 0; border-radius: 0.5rem; background: #526f6b; cursor: pointer; font-size: 0.68rem; font-weight: 620; }
+.business-create-popover > button:disabled { cursor: progress; opacity: 0.7; }
 .api-notice {
   position: absolute;
   top: calc(100% + 0.45rem);
@@ -435,7 +456,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .login-form { display: grid; gap: 1.05rem; }
 .login-field { display: grid; gap: 0.42rem; }
 .login-field > span { color: #555762; font-size: 0.7rem; font-weight: 620; }
-.login-field input {
+.login-field input, .login-field select {
   width: 100%;
   min-height: 3.05rem;
   padding: 0.75rem 0.9rem;
@@ -449,9 +470,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 .login-field input::placeholder { color: #b5b6be; }
-.login-field input:hover { border-color: #ccced6; }
-.login-field input:focus { border-color: #88a69a; box-shadow: 0 0 0 0.22rem rgb(92 132 115 / 13%); }
+.login-field input:hover, .login-field select:hover { border-color: #ccced6; }
+.login-field input:focus, .login-field select:focus { border-color: #88a69a; box-shadow: 0 0 0 0.22rem rgb(92 132 115 / 13%); }
 .login-field input[aria-invalid="true"] { border-color: #d98b91; box-shadow: 0 0 0 0.2rem rgb(208 110 117 / 9%); }
+.login-mode-toggle { display: block; margin: 1rem auto 0; padding: 0.3rem; color: #58756f; border: 0; background: transparent; cursor: pointer; font-size: 0.7rem; font-weight: 620; }
+.login-mode-toggle:hover { color: #405e5a; text-decoration: underline; }
 .login-error { margin: -0.2rem 0 0; padding: 0.62rem 0.75rem; color: #ae525b; border: 1px solid #f2dcde; border-radius: 0.65rem; background: #fff7f7; font-size: 0.7rem; }
 .login-submit { display: inline-flex; min-height: 3rem; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 0.25rem; color: #fff; border: 1px solid #4f706b; border-radius: 0.76rem; background: linear-gradient(180deg, #698780, #526f6b); box-shadow: 0 0.35rem 0.8rem rgb(65 94 90 / 17%), inset 0 1px rgb(255 255 255 / 25%); cursor: pointer; font-size: 0.78rem; font-weight: 640; transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease; }
 .login-submit:hover:not(:disabled) { background: linear-gradient(180deg, #5d7c75, #46635f); box-shadow: 0 0.5rem 1rem rgb(65 94 90 / 22%), inset 0 1px rgb(255 255 255 / 25%); }

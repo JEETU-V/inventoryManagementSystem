@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
 
 from models import Order, db
 from schemas.validators import OrderSchema, OrderStatusSchema, validate_payload
@@ -7,12 +6,13 @@ from services.order_service import create_order, update_order_status
 from services.serializers import order_to_dict
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.tenancy import business_required
 
 orders_bp = Blueprint("orders", __name__)
 
 
 @orders_bp.get("")
-@jwt_required()
+@business_required
 def list_orders():
     status = request.args.get("status", "").strip()
     customer_id = request.args.get("customerId", type=int)
@@ -28,9 +28,9 @@ def list_orders():
 
 
 @orders_bp.get("/<int:order_id>")
-@jwt_required()
+@business_required
 def get_order(order_id):
-    order = Order.query.get(order_id)
+    order = Order.query.filter_by(id=order_id).first()
     if not order:
         raise ApiError("Order not found", 404)
     return jsonify(order_to_dict(order))
@@ -48,7 +48,7 @@ def add_order():
 @orders_bp.put("/<int:order_id>")
 @role_required("admin", "staff")
 def update_order(order_id):
-    order = Order.query.get(order_id)
+    order = Order.query.filter_by(id=order_id).first()
     if not order:
         raise ApiError("Order not found", 404)
     data = validate_payload(OrderStatusSchema, request.get_json(), partial=True)
@@ -61,7 +61,7 @@ def update_order(order_id):
 @orders_bp.post("/<int:order_id>/cancel")
 @role_required("admin", "staff")
 def cancel_order(order_id):
-    order = Order.query.get(order_id)
+    order = Order.query.filter_by(id=order_id).first()
     if not order:
         raise ApiError("Order not found", 404)
     if order.status == "Cancelled":

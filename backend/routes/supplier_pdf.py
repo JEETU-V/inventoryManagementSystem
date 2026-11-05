@@ -2,13 +2,13 @@ import os
 
 import pdfplumber
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
 from werkzeug.utils import secure_filename
 
 from models import Product, Supplier, SupplierPdfItem, SupplierPdfUpload, db
 from services.inventory_service import adjust_stock
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.tenancy import business_required
 
 supplier_pdf_bp = Blueprint("supplier_pdf", __name__)
 
@@ -62,7 +62,7 @@ def parse_pdf_items(text):
 @supplier_pdf_bp.post("/upload/<int:supplier_id>")
 @role_required("admin")
 def upload_supplier_pdf(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
 
@@ -163,9 +163,9 @@ def upload_supplier_pdf(supplier_id):
 
 
 @supplier_pdf_bp.get("/<int:supplier_id>/uploads")
-@jwt_required()
+@business_required
 def get_supplier_uploads(supplier_id):
-    supplier = Supplier.query.get(supplier_id)
+    supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
 
@@ -186,9 +186,9 @@ def get_supplier_uploads(supplier_id):
 
 
 @supplier_pdf_bp.get("/uploads/<int:upload_id>/items")
-@jwt_required()
+@business_required
 def get_pdf_items(upload_id):
-    upload = SupplierPdfUpload.query.get(upload_id)
+    upload = SupplierPdfUpload.query.filter_by(id=upload_id).first()
     if not upload:
         raise ApiError("Upload not found", 404)
 

@@ -10,13 +10,21 @@ import {
   Command,
   CircleHelp,
   UserRoundCog,
+  ShieldCheck,
+  UserRound,
+  Building2,
+  CreditCard,
+  Activity,
+  HeartHandshake,
+  Settings,
 } from "lucide-react";
 import { useAppData } from "../../contexts/useAppData";
 
 function Sidebar() {
-  const { canViewProfit, canManageUsers, lowStockCount } = useAppData();
+  const { canViewProfit, canManageUsers, isPlatformAdmin, lowStockCount, activeBusiness } = useAppData();
+  const workspaceBase = activeBusiness?.slug ? `/shop/${activeBusiness.slug}` : "";
 
-  const navItems = [
+  const workspaceNavItems = [
     {
       name: "Dashboard",
       path: "/dashboard",
@@ -62,7 +70,7 @@ function Sidebar() {
   ];
 
   if (canViewProfit) {
-    navItems.push({
+    workspaceNavItems.push({
       name: "Profit",
       path: "/profit",
       icon: TrendingUp,
@@ -70,23 +78,47 @@ function Sidebar() {
     });
   }
   if (canManageUsers) {
-    navItems.push({
+    workspaceNavItems.push({
       name: "Team access",
       path: "/users",
       icon: UserRoundCog,
       section: "Manage",
     });
   }
+  if (canViewProfit) {
+    workspaceNavItems.push({
+      name: "Storefront settings",
+      path: "/settings",
+      icon: Settings,
+      section: "Manage",
+    });
+  }
+  const businessNavItems = workspaceNavItems.map((item) => ({
+    ...item,
+    path: `${workspaceBase}${item.path}`,
+  }));
+  const navItems = isPlatformAdmin
+    ? [
+      { name: "Platform administration", path: "/platform-admin", icon: ShieldCheck, section: "Platform" },
+      { name: "Shop owner accounts", path: "/platform-admin/owners", icon: UserRound, section: "Platform" },
+      { name: "Business registration", path: "/platform-admin/businesses", icon: Building2, section: "Platform" },
+      { name: "Subscription plans", path: "/platform-admin/plans", icon: CreditCard, section: "Platform" },
+      { name: "Account status", path: "/platform-admin/status", icon: Activity, section: "Platform" },
+      { name: "Platform usage", path: "/platform-admin/usage", icon: TrendingUp, section: "Platform" },
+      { name: "Technical health", path: "/platform-admin/health", icon: Activity, section: "Platform" },
+      { name: "Support & audit logs", path: "/platform-admin/support", icon: HeartHandshake, section: "Platform" },
+    ]
+    : businessNavItems;
 
   const sections = [...new Set(navItems.map((item) => item.section))];
 
   return (
     <aside className="sidebar">
-      <NavLink to="/dashboard" className="brand-lockup" aria-label="Stockroom dashboard">
+      <NavLink to={isPlatformAdmin ? "/platform-admin" : "/dashboard"} className="brand-lockup" aria-label={isPlatformAdmin ? "Platform administration" : "Stockroom dashboard"}>
         <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
         <span className="brand-copy">
           <strong>Stockroom</strong>
-          <small>INVENTORY STUDIO</small>
+          <small>{isPlatformAdmin ? "PLATFORM ADMIN" : "INVENTORY STUDIO"}</small>
         </span>
       </NavLink>
 
@@ -102,7 +134,7 @@ function Sidebar() {
                   key={item.path}
                   to={item.path}
                   className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
-                  end={item.path === "/dashboard"}
+                  end={item.name === "Dashboard" || item.path === "/platform-admin"}
                 >
                   <Icon size={18} strokeWidth={1.8} />
                   <span>{item.name}</span>
@@ -120,11 +152,11 @@ function Sidebar() {
         <div className="sidebar-tip">
           <span className="sidebar-tip-icon"><Command size={16} /></span>
           <div>
-            <strong>Everything in place</strong>
-            <span>Your shop, at a glance.</span>
+            <strong>{isPlatformAdmin ? "Platform access" : "Everything in place"}</strong>
+            <span>{isPlatformAdmin ? "Business enrollments only." : "Your shop, at a glance."}</span>
           </div>
         </div>
-        <div className="sidebar-help"><CircleHelp size={15} /> Built for your business</div>
+        <div className="sidebar-help"><CircleHelp size={15} /> {isPlatformAdmin ? "Platform operations" : "Built for your business"}</div>
       </div>
     </aside>
   );

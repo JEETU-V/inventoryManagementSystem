@@ -2,10 +2,10 @@ from datetime import datetime
 from decimal import Decimal
 
 from flask import Blueprint, current_app, jsonify
-from flask_jwt_extended import jwt_required
 
 from models import Order
 from utils.errors import ApiError
+from utils.tenancy import business_required
 
 bills_bp = Blueprint("bills", __name__)
 
@@ -64,18 +64,18 @@ def _build_bill(order):
 
 
 @bills_bp.get("/<int:order_id>")
-@jwt_required()
+@business_required
 def get_bill(order_id):
-    order = Order.query.get(order_id)
+    order = Order.query.filter_by(id=order_id).first()
     if not order:
         raise ApiError("Order not found", 404)
     return jsonify(_build_bill(order))
 
 
 @bills_bp.post("/print/<int:order_id>")
-@jwt_required()
+@business_required
 def print_bill(order_id):
-    order = Order.query.get(order_id)
+    order = Order.query.filter_by(id=order_id).first()
     if not order:
         raise ApiError("Order not found", 404)
     return jsonify({"success": True, "bill": _build_bill(order)})

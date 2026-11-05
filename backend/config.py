@@ -27,6 +27,14 @@ class Config:
     ]
     DEFAULT_ADMIN_EMAIL = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
     DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123")
+    platform_admin_emails = os.getenv("PLATFORM_ADMIN_EMAILS")
+    if platform_admin_emails is None and os.getenv("FLASK_ENV", "development") != "production":
+        platform_admin_emails = DEFAULT_ADMIN_EMAIL
+    PLATFORM_ADMIN_EMAILS = tuple(
+        email.strip().lower()
+        for email in (platform_admin_emails or "").split(",")
+        if email.strip()
+    )
 
     COMPANY_NAME = os.getenv("COMPANY_NAME", "Stationery Shop")
     COMPANY_ADDRESS = os.getenv("COMPANY_ADDRESS", "Your Shop Address")
@@ -36,5 +44,3 @@ class Config:
     GST_RATE = float(os.getenv("GST_RATE", "0.18"))
 
     FLASK_ENV = os.getenv("FLASK_ENV", "development")
-
-

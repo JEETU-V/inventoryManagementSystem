@@ -16,10 +16,12 @@ def generate_order_number():
 
 
 def create_order(data):
-    if not db.session.get(Customer, data["customer_id"]):
+    customer = Customer.query.filter_by(id=data["customer_id"]).first()
+    if not customer:
         raise ApiError("Customer not found", 404)
 
     order = Order(
+        business_id=customer.business_id,
         order_number=generate_order_number(),
         customer_id=data["customer_id"],
         status="Pending",
@@ -30,7 +32,10 @@ def create_order(data):
     total_price = Decimal("0.00")
 
     for line in data["items"]:
-        product = Product.query.get(line["product_id"])
+        product = Product.query.filter_by(
+            id=line["product_id"],
+            business_id=customer.business_id,
+        ).first()
         if not product:
             raise ApiError("Product not found", 404)
 
@@ -44,6 +49,7 @@ def create_order(data):
         line_total = Decimal(product.price) * quantity * (Decimal("1") - discount / Decimal("100"))
         order.items.append(
             OrderItem(
+                business_id=customer.business_id,
                 product_id=product.id,
                 product_name=product.name,
                 supplier_id=product.supplier_id,
@@ -75,7 +81,10 @@ def update_order_status(order, status):
         raise ApiError(f"{previous_status} orders cannot be changed to another status", 409)
     if previous_status != "Cancelled" and status == "Cancelled":
         for item in order.items:
-            product = Product.query.get(item.product_id)
+            product = Product.query.filter_by(
+                id=item.product_id,
+                business_id=order.business_id,
+            ).first()
             if product:
                 adjust_stock(product, "stock_in", item.quantity, f"Cancelled order {order.order_number}")
     order.status = status

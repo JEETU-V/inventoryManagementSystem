@@ -1,4 +1,5 @@
 from .auth import auth_bp
+from .businesses import businesses_bp
 from .customers import customers_bp
 from .dashboard import dashboard_bp
 from .inventory import inventory_bp
@@ -10,10 +11,13 @@ from .suppliers import suppliers_bp
 from .bills import bills_bp
 from .supplier_pdf import supplier_pdf_bp
 from .users import users_bp
+from .platform_admin import platform_admin_bp
+from .shops import shops_bp
 
 
 def register_blueprints(app):
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(businesses_bp, url_prefix="/api/businesses")
     app.register_blueprint(products_bp, url_prefix="/api/products")
     app.register_blueprint(suppliers_bp, url_prefix="/api/suppliers")
     app.register_blueprint(customers_bp, url_prefix="/api/customers")
@@ -25,3 +29,5 @@ def register_blueprints(app):
     app.register_blueprint(bills_bp, url_prefix="/api/bills")
     app.register_blueprint(supplier_pdf_bp, url_prefix="/api/supplier-pdf")
     app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(platform_admin_bp, url_prefix="/api/platform-admin")
+    app.register_blueprint(shops_bp, url_prefix="/api/shops")

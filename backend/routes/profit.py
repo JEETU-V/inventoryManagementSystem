@@ -1,6 +1,4 @@
 from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required
-
 from services.report_service import product_profit_breakdown, profit_summary
 from utils.permissions import role_required
 

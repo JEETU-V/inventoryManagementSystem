@@ -157,3 +157,260 @@ class InventoryTransactionSchema(Schema):
 class LoginSchema(Schema):
     email = fields.Email(required=True)
     password = fields.String(required=True)
+
+
+class RegistrationSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=120))
+    email = fields.Email(required=True)
+    password = fields.String(required=True, validate=validate.Length(min=8, max=128))
+    business_name = fields.String(
+        required=True,
+        data_key="businessName",
+        validate=validate.Length(min=1, max=160),
+    )
+    business_type = fields.String(
+        load_default="retail",
+        data_key="businessType",
+        validate=validate.OneOf(["retail", "wholesale", "both"]),
+    )
+
+    @pre_load
+    def normalize_registration(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("name", "email", "businessName"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        if isinstance(data.get("email"), str):
+            data["email"] = data["email"].lower()
+        return data
+
+
+class CustomerPortalRegistrationSchema(Schema):
+    business_slug = fields.String(required=True, data_key="businessSlug", validate=validate.Length(min=1, max=120))
+    name = fields.String(required=True, validate=validate.Length(min=1, max=160))
+    email = fields.Email(required=True)
+    phone = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    address = fields.String(load_default="", validate=validate.Length(max=500))
+    password = fields.String(required=True, validate=validate.Length(min=8, max=128))
+
+    @pre_load
+    def normalize_customer_registration(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("businessSlug", "name", "email", "phone", "address"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        if isinstance(data.get("businessSlug"), str):
+            data["businessSlug"] = data["businessSlug"].lower()
+        if isinstance(data.get("email"), str):
+            data["email"] = data["email"].lower()
+        return data
+
+
+class CustomerPortalLoginSchema(Schema):
+    business_slug = fields.String(required=True, data_key="businessSlug", validate=validate.Length(min=1, max=120))
+    email = fields.Email(required=True)
+    password = fields.String(required=True)
+
+    @pre_load
+    def normalize_customer_login(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("businessSlug", "email"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip().lower()
+        return data
+
+
+class CustomerPortalPasswordSchema(Schema):
+    current_password = fields.String(required=True, data_key="currentPassword")
+    new_password = fields.String(
+        required=True,
+        data_key="newPassword",
+        validate=validate.Length(min=8, max=128),
+    )
+
+
+class BusinessSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=160))
+    business_type = fields.String(
+        load_default="retail",
+        data_key="businessType",
+        validate=validate.OneOf(["retail", "wholesale", "both"]),
+    )
+
+    @pre_load
+    def trim_business_name(self, data, **kwargs):
+        data = dict(data or {})
+        if isinstance(data.get("name"), str):
+            data["name"] = data["name"].strip()
+        return data
+
+
+class PlatformBusinessStatusSchema(Schema):
+    status = fields.String(required=True, validate=validate.OneOf(["active", "suspended"]))
+
+
+class PlatformOwnerStatusSchema(Schema):
+    is_active = fields.Boolean(required=True, data_key="isActive")
+
+
+class SubscriptionPlanSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    description = fields.String(load_default="", validate=validate.Length(max=500))
+    monthly_price = fields.Decimal(
+        required=True,
+        as_string=False,
+        places=2,
+        validate=validate.Range(min=Decimal("0"), max=Decimal("9999999999.99")),
+        data_key="monthlyPrice",
+    )
+    annual_price = fields.Decimal(
+        required=True,
+        as_string=False,
+        places=2,
+        validate=validate.Range(min=Decimal("0"), max=Decimal("9999999999.99")),
+        data_key="annualPrice",
+    )
+    is_active = fields.Boolean(load_default=True, data_key="isActive")
+
+    @pre_load
+    def trim_plan_fields(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("name", "description"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        return data
+
+
+class BusinessPlanAssignmentSchema(Schema):
+    plan_id = fields.Integer(required=True, allow_none=True, data_key="planId", validate=validate.Range(min=1))
+
+
+class PlatformSupportCaseSchema(Schema):
+    business_id = fields.Integer(allow_none=True, data_key="businessId", validate=validate.Range(min=1))
+    subject = fields.String(required=True, validate=validate.Length(min=1, max=180))
+    description = fields.String(required=True, validate=validate.Length(min=1, max=5000))
+    priority = fields.String(
+        load_default="normal",
+        validate=validate.OneOf(["low", "normal", "high", "urgent"]),
+    )
+    status = fields.String(
+        load_default="open",
+        validate=validate.OneOf(["open", "in_progress", "resolved"]),
+    )
+
+    @pre_load
+    def trim_support_fields(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("subject", "description"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        return data
+
+
+class PlatformSupportCaseStatusSchema(Schema):
+    status = fields.String(required=True, validate=validate.OneOf(["open", "in_progress", "resolved"]))
+
+
+class StorefrontSettingsSchema(Schema):
+    storefront_enabled = fields.Boolean(required=True, data_key="storefrontEnabled")
+    storefront_description = fields.String(
+        load_default="",
+        data_key="storefrontDescription",
+        validate=validate.Length(max=500),
+    )
+    storefront_logo_url = fields.Url(
+        allow_none=True,
+        load_default=None,
+        data_key="storefrontLogoUrl",
+        schemes={"http", "https"},
+    )
+    storefront_brand_color = fields.String(
+        required=True,
+        data_key="storefrontBrandColor",
+        validate=validate.Regexp(r"^#[0-9A-Fa-f]{6}$"),
+    )
+    storefront_contact_email = fields.Email(
+        allow_none=True,
+        load_default=None,
+        data_key="storefrontContactEmail",
+    )
+    storefront_contact_phone = fields.String(
+        allow_none=True,
+        load_default=None,
+        data_key="storefrontContactPhone",
+        validate=validate.Length(max=80),
+    )
+    storefront_address = fields.String(
+        allow_none=True,
+        load_default=None,
+        data_key="storefrontAddress",
+        validate=validate.Length(max=500),
+    )
+
+
+class ShopCustomerRegistrationSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=160))
+    email = fields.Email(required=True)
+    password = fields.String(required=True, validate=validate.Length(min=8, max=128))
+    phone = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    address = fields.String(load_default="", validate=validate.Length(max=500))
+
+    @pre_load
+    def normalize_shop_customer(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("name", "email", "phone", "address"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        if isinstance(data.get("email"), str):
+            data["email"] = data["email"].lower()
+        return data
+
+
+class ShopCustomerLoginSchema(Schema):
+    email = fields.Email(required=True)
+    password = fields.String(required=True)
+
+    @pre_load
+    def normalize_shop_customer_login(self, data, **kwargs):
+        data = dict(data or {})
+        if isinstance(data.get("email"), str):
+            data["email"] = data["email"].strip().lower()
+        return data
+
+
+class ShopCustomerProfileSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=160))
+    phone = fields.String(required=True, validate=validate.Length(min=1, max=80))
+    address = fields.String(load_default="", validate=validate.Length(max=500))
+
+    @pre_load
+    def trim_shop_customer_profile(self, data, **kwargs):
+        data = dict(data or {})
+        for key in ("name", "phone", "address"):
+            if isinstance(data.get(key), str):
+                data[key] = data[key].strip()
+        return data
+
+
+class ShopOrderItemSchema(Schema):
+    product_id = fields.Integer(required=True, data_key="productId", validate=validate.Range(min=1))
+    quantity = fields.Integer(required=True, validate=validate.Range(min=1, max=1000))
+
+
+class ShopCheckoutSchema(Schema):
+    items = fields.List(fields.Nested(ShopOrderItemSchema), required=True, validate=validate.Length(min=1, max=100))
+    fulfillment_type = fields.String(
+        required=True,
+        data_key="fulfillmentType",
+        validate=validate.OneOf(["pickup", "delivery"]),
+    )
+    delivery_address = fields.String(
+        load_default="",
+        data_key="deliveryAddress",
+        validate=validate.Length(max=500),
+    )
+
+    @validates_schema
+    def validate_delivery_details(self, data, **kwargs):
+        if data.get("fulfillment_type") == "delivery" and not data.get("delivery_address", "").strip():
+            raise ValidationError({"deliveryAddress": ["A delivery address is required."]})

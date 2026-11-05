@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
 from sqlalchemy import func
 
 from models import InventoryTransaction, Order, Product, db
@@ -8,12 +7,13 @@ from services.inventory_service import adjust_stock
 from services.serializers import inventory_transaction_to_dict, product_to_dict
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.tenancy import business_required
 
 inventory_bp = Blueprint("inventory", __name__)
 
 
 @inventory_bp.get("")
-@jwt_required()
+@business_required
 def inventory_summary():
     products = Product.query.order_by(Product.name).all()
     low_stock = [product for product in products if product.quantity <= product.reorder_level]
@@ -40,7 +40,7 @@ def inventory_summary():
 
 
 @inventory_bp.get("/transactions")
-@jwt_required()
+@business_required
 def list_inventory_transactions():
     product_id = request.args.get("productId", type=int)
     transactions = InventoryTransaction.query
@@ -54,7 +54,7 @@ def list_inventory_transactions():
 @role_required("admin")
 def create_inventory_transaction():
     data = validate_payload(InventoryTransactionSchema, request.get_json())
-    product = Product.query.get(data["product_id"])
+    product = Product.query.filter_by(id=data["product_id"]).first()
     if not product:
         raise ApiError("Product not found", 404)
     adjust_stock(product, data["transaction_type"], data["quantity"], data.get("reason", "Manual adjustment"))

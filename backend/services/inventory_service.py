@@ -19,6 +19,7 @@ def adjust_stock(product, transaction_type, quantity, reason=""):
 
     db.session.add(
         InventoryTransaction(
+            business_id=product.business_id,
             product_id=product.id,
             transaction_type=transaction_type,
             quantity=quantity,
@@ -32,7 +33,12 @@ def sync_sale_for_completed_order(order):
     if order.status != "Completed":
         return None
 
-    sale = order.sale or Sale(order_id=order.id, customer_id=order.customer_id)
+    sale = order.sale or Sale(
+        business_id=order.business_id,
+        order_id=order.id,
+        customer_id=order.customer_id,
+    )
+    sale.business_id = order.business_id
     sale.customer_id = order.customer_id
     sale.total_quantity = order.total_quantity
     sale.total_amount = order.total_price
@@ -42,6 +48,7 @@ def sync_sale_for_completed_order(order):
     for item in order.items:
         sale.items.append(
             SaleItem(
+                business_id=order.business_id,
                 product_id=item.product_id,
                 product_name=item.product_name,
                 quantity=item.quantity,
@@ -60,8 +67,7 @@ def remove_sale_for_order(order):
 
 
 def get_product_or_404(product_id):
-    product = Product.query.get(product_id)
+    product = Product.query.filter_by(id=product_id).first()
     if not product:
         raise ApiError("Product not found", 404)
     return product
-

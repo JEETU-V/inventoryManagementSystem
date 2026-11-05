@@ -5,7 +5,7 @@ from flask_migrate import Migrate
 from sqlalchemy import text
 
 from config import Config
-from models import User, db
+from models import Customer, CustomerAccount, User, db
 from routes import register_blueprints
 from utils.errors import ApiError
 
@@ -18,14 +18,14 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app, db, directory="migrations/alembic")
     jwt.init_app(app)
 
     CORS(
         app,
         origins=app.config["CORS_ORIGINS"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"],
+        allow_headers=["Content-Type", "Authorization", "X-Business-Id"],
     )
 
     register_blueprints(app)
@@ -55,6 +55,16 @@ def register_jwt_handlers(app):
             user_id = int(jwt_payload["sub"])
         except (KeyError, TypeError, ValueError):
             return True
+        if jwt_payload.get("portal") == "customer":
+            if jwt_payload.get("shop_customer_account"):
+                account = db.session.get(CustomerAccount, user_id)
+                return account is None or not account.is_active
+            customer = db.session.get(Customer, user_id)
+            return (
+                customer is None
+                or not customer.portal_password_hash
+                or customer.business.status != "active"
+            )
         user = db.session.get(User, user_id)
         return user is None or not user.is_active
 

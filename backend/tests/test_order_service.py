@@ -2,9 +2,10 @@ import unittest
 from decimal import Decimal
 
 from app import create_app
-from models import Customer, InventoryTransaction, Product, Sale, db
+from models import Business, Customer, InventoryTransaction, Product, Sale, User, db
 from services.order_service import create_order, update_order_status
 from utils.errors import ApiError
+from utils.security import hash_password
 
 
 class TestConfig:
@@ -24,13 +25,29 @@ class OrderStatusFlowTests(unittest.TestCase):
         self.app_context.push()
         db.create_all()
 
+        user = User(
+            name="Shop Owner",
+            email="owner@example.com",
+            password_hash=hash_password("test-password"),
+        )
+        db.session.add(user)
+        db.session.flush()
+        business = Business(
+            name="Test Shop",
+            slug="test-shop",
+            created_by=user,
+        )
+        db.session.add(business)
+        db.session.flush()
         self.customer = Customer(
+            business_id=business.id,
             name="Test Customer",
             phone="555-0100",
             email="customer@example.com",
             address="Test address",
         )
         self.product = Product(
+            business_id=business.id,
             name="Notebook",
             sku="NOTEBOOK-1",
             category="Paper",

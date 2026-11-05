@@ -55,6 +55,7 @@ def customer_to_dict(customer):
         "phone": customer.phone,
         "email": customer.email,
         "address": customer.address,
+        "hasPortalAccount": bool(customer.portal_password_hash),
     }
 
 

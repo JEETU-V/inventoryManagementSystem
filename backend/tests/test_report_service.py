@@ -3,9 +3,10 @@ from datetime import date
 from decimal import Decimal
 
 from app import create_app
-from models import Customer, Product, Supplier, SupplierTransaction, db
+from models import Business, Customer, Product, Supplier, SupplierTransaction, User, db
 from services.order_service import create_order, update_order_status
 from services.report_service import dashboard_summary, product_profit_breakdown, profit_summary
+from utils.security import hash_password
 
 
 class TestConfig:
@@ -24,19 +25,36 @@ class ProfitReportTests(unittest.TestCase):
         self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
+        user = User(
+            name="Shop Owner",
+            email="owner@example.com",
+            password_hash=hash_password("test-password"),
+        )
+        db.session.add(user)
+        db.session.flush()
+        business = Business(
+            name="Test Shop",
+            slug="test-shop",
+            created_by=user,
+        )
+        db.session.add(business)
+        db.session.flush()
         self.supplier = Supplier(
+            business_id=business.id,
             name="Paper Supplier",
             contact="555-0101",
             email="supplier@example.com",
             products_supplied="Paper goods",
         )
         self.customer = Customer(
+            business_id=business.id,
             name="Test Customer",
             phone="555-0100",
             email="customer@example.com",
             address="Test address",
         )
         self.product = Product(
+            business_id=business.id,
             name="Notebook",
             sku="NOTEBOOK-1",
             category="Paper",
@@ -49,6 +67,7 @@ class ProfitReportTests(unittest.TestCase):
         db.session.flush()
         db.session.add(
             SupplierTransaction(
+                business_id=business.id,
                 supplier_id=self.supplier.id,
                 product_id=self.product.id,
                 quantity=10,

@@ -3,7 +3,7 @@ import unittest
 from flask_jwt_extended import create_access_token
 
 from app import create_app
-from models import User, db
+from models import Business, BusinessMembership, User, db
 from utils.security import hash_password
 
 
@@ -36,7 +36,14 @@ class UserRouteTests(unittest.TestCase):
             password_hash=hash_password("test-password"),
             role="staff",
         )
-        db.session.add_all([self.admin, self.staff])
+        business = Business(name="Test Shop", slug="test-shop", created_by=self.admin)
+        db.session.add_all([
+            self.admin,
+            self.staff,
+            business,
+            BusinessMembership(user=self.admin, business=business, role="owner"),
+            BusinessMembership(user=self.staff, business=business, role="staff"),
+        ])
         db.session.commit()
         self.admin_headers = self.auth_headers(self.admin)
 
@@ -83,8 +90,8 @@ class UserRouteTests(unittest.TestCase):
         self.assertFalse(disabled.json["isActive"])
 
         inactive_headers = self.auth_headers(db.session.get(User, created.json["id"]))
-        rejected = self.client.get("/api/auth/me", headers=inactive_headers)
-        self.assertEqual(rejected.status_code, 401)
+        rejected = self.client.get("/api/products", headers=inactive_headers)
+        self.assertEqual(rejected.status_code, 403)
 
     def test_rejects_duplicate_users_and_protects_last_admin(self):
         duplicate = self.client.post(

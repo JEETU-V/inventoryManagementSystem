@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppContext from "./AppContextDefinition";
 import {
+  businessApi,
   customerApi,
+  getActiveBusinessId,
   getAccessToken,
   inventoryApi,
   loadAppData,
@@ -9,7 +11,10 @@ import {
   logoutRequest,
   meRequest,
   orderApi,
+  platformAdminLoginRequest,
   productApi,
+  registerRequest,
+  setActiveBusinessId as saveActiveBusinessId,
   supplierApi,
 } from "../services/api";
 import { parseAmount } from "../utils/orderHelpers";
@@ -49,6 +54,7 @@ const rolePermissions = {
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [activeBusinessId, setActiveBusinessIdState] = useState(getActiveBusinessId());
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -60,6 +66,16 @@ export function AppProvider({ children }) {
   const [isBootstrapping, setIsBootstrapping] = useState(Boolean(getAccessToken()));
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [apiError, setApiError] = useState("");
+
+  const activateUserBusiness = useCallback((currentUser) => {
+    const businesses = currentUser.businesses || [];
+    const storedId = getActiveBusinessId();
+    const selected = businesses.find((business) => String(business.id) === storedId)
+      || businesses[0];
+    const businessId = selected ? String(selected.id) : null;
+    saveActiveBusinessId(businessId);
+    setActiveBusinessIdState(businessId);
+  }, []);
 
   const refreshData = useCallback(async () => {
     if (!getAccessToken()) return;
@@ -91,8 +107,11 @@ export function AppProvider({ children }) {
 
       try {
         const currentUser = await meRequest();
+        activateUserBusiness(currentUser);
         setUser(currentUser);
-        await refreshData();
+        if (currentUser.businesses?.length) {
+          await refreshData();
+        }
       } catch {
         await logoutRequest();
         setUser(null);
@@ -102,18 +121,69 @@ export function AppProvider({ children }) {
     }
 
     bootstrapUser();
-  }, [refreshData]);
+  }, [activateUserBusiness, refreshData]);
 
   const login = async ({ email, password }) => {
     const signedInUser = await loginRequest({ email, password });
+    activateUserBusiness(signedInUser);
     setUser(signedInUser);
-    await refreshData();
+    if (signedInUser.businesses?.length) {
+      await refreshData();
+    }
     return signedInUser;
+  };
+
+  const loginPlatformAdmin = async ({ email, password }) => {
+    const signedInUser = await platformAdminLoginRequest({ email, password });
+    activateUserBusiness(signedInUser);
+    setUser(signedInUser);
+    setProducts([]);
+    setSuppliers([]);
+    setCustomers([]);
+    setOrders([]);
+    setSupplierTransactions([]);
+    setInventoryTransactions([]);
+    setDashboardSummary(null);
+    setSalesSummary(null);
+    setApiError("");
+    return signedInUser;
+  };
+
+  const register = async (details) => {
+    const newUser = await registerRequest(details);
+    activateUserBusiness(newUser);
+    setUser(newUser);
+    await refreshData();
+    return newUser;
+  };
+
+  const selectBusiness = useCallback(async (businessId) => {
+    if (!user?.businesses?.some((business) => String(business.id) === String(businessId))) {
+      throw new Error("You do not have access to that business.");
+    }
+    const selectedId = String(businessId);
+    saveActiveBusinessId(selectedId);
+    setActiveBusinessIdState(selectedId);
+    await refreshData();
+  }, [user, refreshData]);
+
+  const createBusiness = async (details) => {
+    const business = await businessApi.create(details);
+    const updatedUser = {
+      ...user,
+      businesses: [...(user?.businesses || []), business],
+    };
+    setUser(updatedUser);
+    saveActiveBusinessId(String(business.id));
+    setActiveBusinessIdState(String(business.id));
+    await refreshData();
+    return business;
   };
 
   const logout = async () => {
     await logoutRequest();
     setUser(null);
+    setActiveBusinessIdState(null);
     setProducts([]);
     setSuppliers([]);
     setCustomers([]);
@@ -124,7 +194,13 @@ export function AppProvider({ children }) {
     setSalesSummary(null);
   };
 
-  const currentPermissions = rolePermissions[user?.role ?? "viewer"];
+  const activeBusiness = user?.businesses?.find(
+    (business) => String(business.id) === activeBusinessId
+  );
+  const permissionRole = ["owner", "manager"].includes(activeBusiness?.role)
+    ? "admin"
+    : activeBusiness?.role || user?.role || "viewer";
+  const currentPermissions = rolePermissions[permissionRole] || rolePermissions.viewer;
 
   const addProduct = async (product) => {
     const createdProduct = await productApi.create(product);
@@ -181,6 +257,14 @@ export function AppProvider({ children }) {
   const deleteCustomer = async (customerId) => {
     await customerApi.delete(customerId);
     setCustomers((previous) => previous.filter((customer) => customer.id !== customerId));
+  };
+
+  const activateCustomerPortal = async (customerId) => {
+    const result = await customerApi.activatePortal(customerId);
+    setCustomers((previous) =>
+      previous.map((customer) => customer.id === customerId ? result.customer : customer)
+    );
+    return result;
   };
 
   const createInventoryTransaction = async (transaction) => {
@@ -249,12 +333,20 @@ export function AppProvider({ children }) {
     <AppContext.Provider
       value={{
         user,
+        isPlatformAdmin: Boolean(user?.isPlatformAdmin),
+        businesses: user?.businesses || [],
+        activeBusiness,
+        activeBusinessId,
         isAuthenticated: Boolean(user),
         isBootstrapping,
         isLoadingData,
         apiError,
         permissions: currentPermissions,
         login,
+        loginPlatformAdmin,
+        register,
+        selectBusiness,
+        createBusiness,
         logout,
         refreshData,
         products,
@@ -278,6 +370,7 @@ export function AppProvider({ children }) {
         addCustomer,
         updateCustomer,
         deleteCustomer,
+        activateCustomerPortal,
         createInventoryTransaction,
         addOrder,
         updateOrder,

@@ -4,7 +4,16 @@ from decimal import Decimal
 from flask_jwt_extended import create_access_token
 
 from app import create_app
-from models import Customer, InventoryTransaction, Order, Product, User, db
+from models import (
+    Business,
+    BusinessMembership,
+    Customer,
+    InventoryTransaction,
+    Order,
+    Product,
+    User,
+    db,
+)
 from utils.security import hash_password
 
 
@@ -31,13 +40,18 @@ class OrderRouteTests(unittest.TestCase):
             password_hash=hash_password("test-password"),
             role="admin",
         )
+        business = Business(name="Test Shop", slug="test-shop", created_by=admin)
+        db.session.add_all([admin, business])
+        db.session.flush()
         customer = Customer(
+            business_id=business.id,
             name="Test Customer",
             phone="555-0100",
             email="customer@example.com",
             address="Test address",
         )
         product = Product(
+            business_id=business.id,
             name="Notebook",
             sku="NOTEBOOK-1",
             category="Paper",
@@ -46,7 +60,8 @@ class OrderRouteTests(unittest.TestCase):
             price=Decimal("5.00"),
             reorder_level=2,
         )
-        db.session.add_all([admin, customer, product])
+        db.session.add_all([customer, product])
+        db.session.add(BusinessMembership(user=admin, business=business, role="owner"))
         db.session.commit()
         self.customer = customer
         self.product = product

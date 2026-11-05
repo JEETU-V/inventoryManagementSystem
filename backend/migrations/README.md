@@ -43,6 +43,15 @@ is not a complete current SaaS schema. Do not use it to create a fresh
 production database. Production requires a persistent MySQL URL, strong
 application secrets, and an explicit platform-administrator allowlist.
 
+For the supported local SQLite database at revision `cc8e1042f691`, use
+`python migrate_sqlite_to_mysql.py --dry-run` to verify the source and an empty
+MySQL target before importing. After verifying the displayed table counts,
+run `python migrate_sqlite_to_mysql.py`. The importer creates the current model
+schema, copies rows in dependency order, stamps the current Alembic head, and
+checks row counts. It refuses to modify a non-empty target and never writes to
+the SQLite source. The Aiven CA certificate must be configured locally with
+`MYSQL_SSL_CA_PATH`; for Vercel, provide its PEM contents with `MYSQL_SSL_CA`.
+
 Generate future migrations with `flask db migrate -m "describe the schema
 change"`, review the generated script, and then apply it with `flask db upgrade`.
 The canonical SQLAlchemy model definitions live in `models/entities.py`.

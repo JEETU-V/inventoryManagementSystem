@@ -1,5 +1,8 @@
 import os
+import ssl
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
@@ -10,6 +13,39 @@ IS_PRODUCTION_ENV = (
 )
 if not IS_PRODUCTION_ENV:
     load_dotenv()
+
+
+def _resolve_mysql_ssl_ca():
+    inline_certificate = os.getenv("MYSQL_SSL_CA")
+    certificate_path = os.getenv("MYSQL_SSL_CA_PATH")
+
+    if inline_certificate and certificate_path:
+        raise RuntimeError("Set only one of MYSQL_SSL_CA or MYSQL_SSL_CA_PATH")
+
+    if inline_certificate:
+        if "-----BEGIN CERTIFICATE-----" not in inline_certificate:
+            raise RuntimeError("MYSQL_SSL_CA must contain a PEM CA certificate")
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="ascii",
+            prefix="inventory-mysql-ca-",
+            suffix=".pem",
+            delete=False,
+        ) as certificate_file:
+            certificate_file.write(inline_certificate.strip() + "\n")
+        resolved_path = certificate_file.name
+    elif certificate_path:
+        resolved_path = str(Path(certificate_path).expanduser().resolve())
+    else:
+        local_certificate = Path(__file__).parent / "certs" / "ca.pem"
+        resolved_path = str(local_certificate) if local_certificate.is_file() else None
+
+    if resolved_path:
+        try:
+            ssl.create_default_context(cafile=resolved_path)
+        except (OSError, ssl.SSLError) as error:
+            raise RuntimeError("The configured MySQL CA certificate is invalid") from error
+    return resolved_path
 
 
 class Config:
@@ -25,6 +61,7 @@ class Config:
     database_url = os.getenv("DATABASE_URL")
     if database_url and database_url.startswith("mysql://"):
         database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
+    mysql_ssl_ca_path = _resolve_mysql_ssl_ca()
     platform_admin_emails = os.getenv("PLATFORM_ADMIN_EMAILS")
     if platform_admin_emails is None and not IS_PRODUCTION:
         platform_admin_emails = os.getenv(
@@ -43,6 +80,12 @@ class Config:
             "DATABASE_URL": database_url,
             "PLATFORM_ADMIN_EMAILS": PLATFORM_ADMIN_EMAILS,
         }
+        if (
+            database_url
+            and urlsplit(database_url).scheme == "mysql+pymysql"
+            and not mysql_ssl_ca_path
+        ):
+            required_settings["MYSQL_SSL_CA or MYSQL_SSL_CA_PATH"] = None
         missing_settings = [
             name for name, value in required_settings.items() if not value
         ]
@@ -69,6 +112,13 @@ class Config:
         "max_overflow": 2,
         "pool_timeout": 30,
     }
+    if database_url and urlsplit(database_url).scheme == "mysql+pymysql" and mysql_ssl_ca_path:
+        SQLALCHEMY_ENGINE_OPTIONS["connect_args"] = {
+            "ssl": {
+                "ca": mysql_ssl_ca_path,
+                "check_hostname": True,
+            }
+        }
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(10 * 1024 * 1024)))
     ENABLE_SUPPLIER_PDF_UPLOADS = not IS_PRODUCTION
     default_cors_origins = "" if IS_PRODUCTION else "http://localhost:5173,http://localhost:5174"

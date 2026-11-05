@@ -136,7 +136,10 @@ Prerequisites: Node.js/npm and Python 3.
 
    Production setup requires a persistent MySQL database. Set `DATABASE_URL`
    to `mysql+pymysql://...`, supply `SECRET_KEY`, `JWT_SECRET_KEY`, and
-   `PLATFORM_ADMIN_EMAILS`, and provide `DEFAULT_ADMIN_EMAIL` and
+   `PLATFORM_ADMIN_EMAILS`, and configure the provider's CA certificate.
+   Locally, save the Aiven CA as `backend/certs/ca.pem` (it is git-ignored);
+   on Vercel, set `MYSQL_SSL_CA` to the complete PEM certificate value. The
+   connection verifies the CA and MySQL server hostname. Provide `DEFAULT_ADMIN_EMAIL` and
    `DEFAULT_ADMIN_PASSWORD` only when bootstrapping a new database. From a
    trusted environment configured with the production variables, use
    `flask init-fresh-db` for an empty database or `flask db upgrade` for an
@@ -150,6 +153,25 @@ Prerequisites: Node.js/npm and Python 3.
    # For an existing database instead:
    ./venv/bin/flask --app app db upgrade
    ```
+
+   To transfer the existing SQLite database to a new, empty Aiven MySQL
+   database, set its `DATABASE_URL` and local `MYSQL_SSL_CA_PATH` in the
+   ignored `backend/.env` file. First verify connectivity and source counts
+   without writing to MySQL:
+
+   ```bash
+   cd backend
+   ./venv/bin/python migrate_sqlite_to_mysql.py --dry-run
+   ```
+
+   After confirming the target is the intended empty database and the counts
+   match, run `./venv/bin/python migrate_sqlite_to_mysql.py`. The script only
+   accepts the known SQLite revision, refuses a non-empty MySQL target,
+   preserves IDs and password hashes, creates the current schema, stamps the
+   current Alembic head, and verifies copied row counts. It never modifies the
+   SQLite source. Change any development or shared passwords before production
+   use. For Vercel, configure the same MySQL URL, both application secrets,
+   `PLATFORM_ADMIN_EMAILS`, and the PEM contents in `MYSQL_SSL_CA`.
 
 5. In another terminal, start the frontend:
 

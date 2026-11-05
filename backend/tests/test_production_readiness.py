@@ -221,6 +221,7 @@ class ProductionReadinessTests(unittest.TestCase):
             "JWT_SECRET_KEY": "j" * 40,
             "DATABASE_URL": "mysql+pymysql://user:pass@db.example/app",
             "PLATFORM_ADMIN_EMAILS": "platform@example.com",
+            "MYSQL_SSL_CA_PATH": os.path.join(backend_dir, "certs", "ca.pem"),
         }
         configured = subprocess.run(
             [
@@ -229,7 +230,9 @@ class ProductionReadinessTests(unittest.TestCase):
                 "from config import Config; "
                 "assert Config.IS_PRODUCTION; "
                 "assert Config.DEFAULT_ADMIN_PASSWORD is None; "
-                "assert not Config.ENABLE_SUPPLIER_PDF_UPLOADS",
+                "assert not Config.ENABLE_SUPPLIER_PDF_UPLOADS; "
+                "assert Config.SQLALCHEMY_ENGINE_OPTIONS['connect_args']['ssl']['check_hostname']; "
+                "assert Config.SQLALCHEMY_ENGINE_OPTIONS['connect_args']['ssl']['ca'].endswith('ca.pem')",
             ],
             cwd=backend_dir,
             env=environment,

@@ -1,12 +1,15 @@
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt, get_jwt_identity, jwt_required
+from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError
 
-from models import Business, BusinessMembership, User, db
+from models import Business, BusinessMembership, RevokedToken, User, db
 from schemas.validators import LoginSchema, RegistrationSchema, validate_payload
 from services.serializers import user_to_dict
 from utils.errors import ApiError
 from utils.platform_admin import is_platform_admin
 from utils.security import hash_password, verify_password
+from utils.rate_limit import rate_limit
 from utils.tenancy import make_business_slug
 
 auth_bp = Blueprint("auth", __name__)
@@ -36,6 +39,7 @@ def _business_memberships(user):
 
 
 @auth_bp.post("/login")
+@rate_limit(max_requests=5, window_seconds=900)
 def login():
     data = validate_payload(LoginSchema, request.get_json())
     user = User.query.filter_by(email=data["email"].lower()).first()
@@ -53,6 +57,7 @@ def login():
 
 
 @auth_bp.post("/platform-login")
+@rate_limit(max_requests=5, window_seconds=900)
 def platform_login():
     data = validate_payload(LoginSchema, request.get_json())
     user = User.query.filter_by(email=data["email"].lower()).first()
@@ -77,6 +82,7 @@ def platform_login():
 
 
 @auth_bp.post("/register")
+@rate_limit(max_requests=5, window_seconds=3600)
 def register():
     data = validate_payload(RegistrationSchema, request.get_json())
     if User.query.filter(db.func.lower(User.email) == data["email"]).first():
@@ -89,15 +95,29 @@ def register():
         role="staff",
         is_active=True,
     )
-    business = Business(
-        name=data["business_name"],
-        slug=make_business_slug(data["business_name"]),
-        business_type=data["business_type"],
-        created_by=user,
-    )
-    membership = BusinessMembership(user=user, business=business, role="owner")
-    db.session.add_all([user, business, membership])
-    db.session.commit()
+    membership = None
+    for attempt in range(3):
+        business = Business(
+            name=data["business_name"],
+            slug=make_business_slug(data["business_name"]),
+            business_type=data["business_type"],
+            created_by=user,
+        )
+        membership = BusinessMembership(user=user, business=business, role="owner")
+        db.session.add_all([user, business, membership])
+        try:
+            db.session.commit()
+            break
+        except IntegrityError as error:
+            db.session.rollback()
+            if User.query.filter_by(email=data["email"]).first():
+                raise ApiError("An account with this email already exists", 409) from error
+            if attempt == 2:
+                raise ApiError("Unable to create a unique business workspace. Try again.", 409) from error
+
+    if membership is None:
+        raise RuntimeError("Business registration did not create an owner membership.")
+
     token = create_access_token(
         identity=str(user.id),
         additional_claims={"role": user.role, "session_type": "business"},
@@ -119,6 +139,12 @@ def register():
 @auth_bp.post("/logout")
 @jwt_required()
 def logout():
+    claims = get_jwt()
+    db.session.add(RevokedToken(
+        jti=claims["jti"],
+        expires_at=datetime.fromtimestamp(claims["exp"], tz=timezone.utc).replace(tzinfo=None),
+    ))
+    db.session.commit()
     return jsonify({"message": "Logged out"})
 
 
@@ -141,10 +167,12 @@ def me():
 
 @auth_bp.post("/seed-admin")
 def seed_admin():
-    if current_app.config.get("FLASK_ENV") == "production":
+    if current_app.config.get("IS_PRODUCTION"):
         raise ApiError("Seed endpoint is disabled in production", 403)
 
     email = current_app.config["DEFAULT_ADMIN_EMAIL"].lower()
+    if not current_app.config.get("DEFAULT_ADMIN_PASSWORD"):
+        raise ApiError("Configure DEFAULT_ADMIN_PASSWORD before seeding the administrator", 503)
     user = User.query.filter_by(email=email).first()
     if user:
         if not user.memberships:

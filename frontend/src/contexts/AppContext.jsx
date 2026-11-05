@@ -18,6 +18,7 @@ import {
   supplierApi,
 } from "../services/api";
 import { parseAmount } from "../utils/orderHelpers";
+import { apiErrorMessage } from "../services/apiErrors";
 
 const rolePermissions = {
   admin: {
@@ -92,13 +93,19 @@ export function AppProvider({ children }) {
       setDashboardSummary(data.dashboard);
       setSalesSummary(data.sales);
     } catch (error) {
-      setApiError(error.response?.data?.message || "Unable to load inventory data.");
+      setApiError(apiErrorMessage(error, "Unable to load inventory data."));
     } finally {
       setIsLoadingData(false);
     }
   }, []);
 
   useEffect(() => {
+    function handleExpiredSession() {
+      setUser(null);
+      setActiveBusinessIdState(null);
+      setApiError("Your session has expired. Sign in again to continue.");
+    }
+    window.addEventListener("ims:session-expired", handleExpiredSession);
     async function bootstrapUser() {
       if (!getAccessToken()) {
         setIsBootstrapping(false);
@@ -113,7 +120,11 @@ export function AppProvider({ children }) {
           await refreshData();
         }
       } catch {
-        await logoutRequest();
+        try {
+          await logoutRequest();
+        } catch (logoutError) {
+          setApiError(apiErrorMessage(logoutError, "Unable to verify the expired session."));
+        }
         setUser(null);
       } finally {
         setIsBootstrapping(false);
@@ -121,6 +132,7 @@ export function AppProvider({ children }) {
     }
 
     bootstrapUser();
+    return () => window.removeEventListener("ims:session-expired", handleExpiredSession);
   }, [activateUserBusiness, refreshData]);
 
   const login = async ({ email, password }) => {
@@ -181,17 +193,26 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
-    await logoutRequest();
-    setUser(null);
-    setActiveBusinessIdState(null);
-    setProducts([]);
-    setSuppliers([]);
-    setCustomers([]);
-    setOrders([]);
-    setSupplierTransactions([]);
-    setInventoryTransactions([]);
-    setDashboardSummary(null);
-    setSalesSummary(null);
+    let logoutError;
+    try {
+      await logoutRequest();
+    } catch (error) {
+      logoutError = error;
+    } finally {
+      setUser(null);
+      setActiveBusinessIdState(null);
+      setProducts([]);
+      setSuppliers([]);
+      setCustomers([]);
+      setOrders([]);
+      setSupplierTransactions([]);
+      setInventoryTransactions([]);
+      setDashboardSummary(null);
+      setSalesSummary(null);
+    }
+    setApiError(logoutError
+      ? "You were signed out on this device, but server revocation could not be confirmed."
+      : "");
   };
 
   const activeBusiness = user?.businesses?.find(

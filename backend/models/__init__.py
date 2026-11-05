@@ -16,6 +16,8 @@ from .entities import (  # noqa: E402,F401
     PlatformSupportCase,
     Product,
     ProfitRecord,
+    RateLimitBucket,
+    RevokedToken,
     Sale,
     SaleItem,
     SubscriptionPlan,

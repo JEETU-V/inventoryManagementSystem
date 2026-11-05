@@ -188,9 +188,12 @@ def upgrade():
         )
     ).first()
     if owner is None:
+        quote = connection.dialect.identifier_preparer.quote
         has_legacy_data = any(
             inspector.has_table(table_name)
-            and connection.execute(sa.text(f'SELECT 1 FROM "{table_name}" LIMIT 1')).first()
+            and connection.execute(
+                sa.text(f"SELECT 1 FROM {quote(table_name)} LIMIT 1")
+            ).first()
             for table_name in TENANT_TABLES
         )
         if has_legacy_data:
@@ -251,10 +254,14 @@ def upgrade():
             },
         )
 
+    quote = connection.dialect.identifier_preparer.quote
     for table_name in TENANT_TABLES:
         if inspector.has_table(table_name):
             connection.execute(
-                sa.text(f'UPDATE "{table_name}" SET business_id = :business_id WHERE business_id IS NULL'),
+                sa.text(
+                    f"UPDATE {quote(table_name)} SET business_id = :business_id "
+                    "WHERE business_id IS NULL"
+                ),
                 {"business_id": business_id},
             )
 

@@ -1,10 +1,19 @@
 import axios from "axios";
+import { attachApiErrorHandling } from "./apiErrors";
 
 const TOKEN_KEY = "ims-access-token";
 const BUSINESS_KEY = "ims-business-id";
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
+});
+
+attachApiErrorHandling(apiClient, (error) => {
+  const requestUrl = error.config?.url || "";
+  if (/\/auth\/(login|platform-login|register)$/.test(requestUrl)) return;
+  setAccessToken(null);
+  setActiveBusinessId(null);
+  window.dispatchEvent(new Event("ims:session-expired"));
 });
 
 apiClient.interceptors.request.use((config) => {

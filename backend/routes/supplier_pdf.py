@@ -1,7 +1,5 @@
-import os
-
 import pdfplumber
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from models import Product, Supplier, SupplierPdfItem, SupplierPdfUpload, db
@@ -13,23 +11,28 @@ from utils.tenancy import business_required
 supplier_pdf_bp = Blueprint("supplier_pdf", __name__)
 
 ALLOWED_EXTENSIONS = {"pdf"}
-UPLOAD_FOLDER = "uploads/supplier_pdfs"
+MAX_PDF_PAGES = 100
 
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def extract_text_from_pdf(file_path):
+def extract_text_from_pdf(file_stream):
     try:
         text = ""
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_stream) as pdf:
+            if len(pdf.pages) > MAX_PDF_PAGES:
+                raise ApiError(f"PDFs may contain no more than {MAX_PDF_PAGES} pages", 413)
             for page in pdf.pages:
                 page_text = page.extract_text() or ""
                 text += page_text + "\n"
         return text
     except Exception as error:
-        raise ApiError(f"Error extracting PDF text: {error}", 400) from error
+        if isinstance(error, ApiError):
+            raise
+        current_app.logger.exception("Unable to extract supplier PDF text")
+        raise ApiError("Unable to read this PDF. Check that it is a valid, unencrypted PDF.", 400) from error
 
 
 def parse_pdf_items(text):
@@ -62,6 +65,11 @@ def parse_pdf_items(text):
 @supplier_pdf_bp.post("/upload/<int:supplier_id>")
 @role_required("admin")
 def upload_supplier_pdf(supplier_id):
+    if not current_app.config["ENABLE_SUPPLIER_PDF_UPLOADS"]:
+        raise ApiError(
+            "Supplier PDF uploads are disabled until persistent file storage is configured.",
+            503,
+        )
     supplier = Supplier.query.filter_by(id=supplier_id).first()
     if not supplier:
         raise ApiError("Supplier not found", 404)
@@ -76,20 +84,22 @@ def upload_supplier_pdf(supplier_id):
     if not allowed_file(file.filename):
         raise ApiError("Only PDF files are allowed", 400)
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
     filename = secure_filename(file.filename)
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(file_path)
+    if not filename:
+        raise ApiError("The PDF filename is invalid", 400)
+    header = file.stream.read(5)
+    file.stream.seek(0)
+    if header != b"%PDF-":
+        raise ApiError("The uploaded file is not a valid PDF", 400)
 
     try:
-        pdf_text = extract_text_from_pdf(file_path)
+        pdf_text = extract_text_from_pdf(file.stream)
         parsed_items = parse_pdf_items(pdf_text)
 
         pdf_upload = SupplierPdfUpload(
             supplier_id=supplier_id,
             filename=filename,
-            file_path=file_path,
+            file_path=None,
             total_items=len(parsed_items),
         )
         db.session.add(pdf_upload)
@@ -152,14 +162,11 @@ def upload_supplier_pdf(supplier_id):
 
     except ApiError:
         db.session.rollback()
-        if os.path.exists(file_path):
-            os.remove(file_path)
         raise
     except Exception as error:
         db.session.rollback()
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise ApiError(f"Error processing PDF: {error}", 400) from error
+        current_app.logger.exception("Unable to process supplier PDF")
+        raise ApiError("Unable to process this supplier PDF. No inventory changes were saved.", 500) from error
 
 
 @supplier_pdf_bp.get("/<int:supplier_id>/uploads")

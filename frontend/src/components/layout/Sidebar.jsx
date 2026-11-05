@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAppData } from "../../contexts/useAppData";
 
+const APP_NAME = import.meta.env.VITE_APP_NAME || "Stockroom";
+
 function Sidebar() {
   const { canViewProfit, canManageUsers, isPlatformAdmin, lowStockCount, activeBusiness } = useAppData();
   const workspaceBase = activeBusiness?.slug ? `/shop/${activeBusiness.slug}` : "";
@@ -117,8 +119,8 @@ function Sidebar() {
       <NavLink to={isPlatformAdmin ? "/platform-admin" : "/dashboard"} className="brand-lockup" aria-label={isPlatformAdmin ? "Platform administration" : "Stockroom dashboard"}>
         <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
         <span className="brand-copy">
-          <strong>Stockroom</strong>
-          <small>{isPlatformAdmin ? "PLATFORM ADMIN" : "INVENTORY STUDIO"}</small>
+          <strong>{isPlatformAdmin ? APP_NAME : activeBusiness?.name || APP_NAME}</strong>
+          <small>{isPlatformAdmin ? "PLATFORM ADMIN" : APP_NAME.toUpperCase()}</small>
         </span>
       </NavLink>
 

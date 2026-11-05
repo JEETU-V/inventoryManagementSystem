@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from secrets import token_hex
 
 from models import Customer, Order, OrderItem, Product, db
 from services.inventory_service import adjust_stock, remove_sale_for_order, sync_sale_for_completed_order
@@ -10,9 +11,7 @@ VALID_STATUSES = {"Pending", "Completed", "Cancelled"}
 
 
 def generate_order_number():
-    latest = Order.query.order_by(Order.id.desc()).first()
-    next_id = (latest.id + 1) if latest else 1001
-    return f"ORD-{next_id}"
+    return f"ORD-{token_hex(6).upper()}"
 
 
 def create_order(data):

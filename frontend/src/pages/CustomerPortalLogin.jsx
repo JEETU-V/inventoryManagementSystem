@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, Boxes, LoaderCircle, LockKeyhole } from "lucide-react";
 import {
   getCustomerPortalToken,
   loginCustomerPortal,
   registerCustomerPortal,
 } from "../services/customerPortalApi";
+
+const APP_NAME = import.meta.env.VITE_APP_NAME || "Stockroom";
 
 function CustomerPortalLogin() {
   const [mode, setMode] = useState("login");
@@ -18,6 +20,7 @@ function CustomerPortalLogin() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (getCustomerPortalToken()) {
     return <Navigate to="/portal/dashboard" replace />;
@@ -49,7 +52,7 @@ function CustomerPortalLogin() {
             <Boxes size={20} />
           </span>
           <div>
-            <p className="font-semibold text-slate-900">Stockroom</p>
+            <p className="font-semibold text-slate-900">{APP_NAME}</p>
             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Customer account</p>
           </div>
         </div>
@@ -62,6 +65,11 @@ function CustomerPortalLogin() {
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Sign in with the business workspace where you placed your orders.
         </p>
+        {location.state?.message && (
+          <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+            {location.state.message}
+          </p>
+        )}
 
         <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm font-medium text-slate-700">

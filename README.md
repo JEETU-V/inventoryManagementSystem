@@ -6,7 +6,7 @@ A full-stack inventory management application for managing products, suppliers, 
 
 ![Inventory Management System architecture](docs/architecture.png)
 
-The React frontend communicates with a Flask REST API. The backend organizes API routes, business services, data validation, and SQLAlchemy models; SQLite is used by default for local development, with an optional configured database URL.
+The React frontend communicates with a Flask REST API. The backend organizes API routes, business services, data validation, and SQLAlchemy models. SQLite is used for local development; production requires a persistent MySQL database configured through `DATABASE_URL`.
 
 ## Demo
 
@@ -17,6 +17,7 @@ The React frontend communicates with a Flask REST API. The backend organizes API
 - Dashboard with inventory and sales summaries
 - Product, supplier, and customer management
 - Order entry, order cancellation, and bill generation
+- Business-specific bill branding from workspace name and storefront contact settings
 - Inventory transactions and low-stock tracking
 - Sales and profit reporting
 - JWT authentication and role-based access for administrative features
@@ -27,7 +28,7 @@ The React frontend communicates with a Flask REST API. The backend organizes API
 The SaaS foundation supports business registration, multiple businesses per
 user, workspace switching, business-specific roles, and tenant-scoped access to
 the existing inventory APIs. New users can create an owner account and initial
-business from the sign-in page. Existing databases must be backed up and
+business from the sign-in page. Existing legacy databases must be backed up and
 migrated from `backend/` with `flask db upgrade`; the migration assigns legacy
 inventory records and users to one default business.
 
@@ -69,9 +70,11 @@ platform sessions cannot access business APIs, and business sessions cannot
 access platform administration APIs. Owner contact and workspace enrollment
 details are available to platform administrators, but tenant sales, profit,
 products, customers, and orders are not exposed in the platform console.
-Access is restricted to emails listed in `PLATFORM_ADMIN_EMAILS`; configure
-this allowlist explicitly for deployments. The development default uses
-`DEFAULT_ADMIN_EMAIL`.
+Access is restricted to emails listed in `PLATFORM_ADMIN_EMAILS`; production
+requires this allowlist, strong `SECRET_KEY` and `JWT_SECRET_KEY` values, and a
+MySQL `DATABASE_URL`. Production never loads a checked-in `.env` file or uses
+development credential defaults. Configure these values in the deployment
+provider's environment settings.
 
 After upgrading an existing database with `flask db upgrade`, the platform
 administrator can create plans and assign them to registered businesses. The
@@ -82,7 +85,7 @@ events.
 
 - Frontend: React, Vite, Tailwind CSS
 - Backend: Python, Flask, SQLAlchemy, Flask-JWT-Extended
-- Database: SQLite by default; configurable through `DATABASE_URL`
+- Database: SQLite for local development; MySQL for production
 
 ## Local development
 
@@ -101,11 +104,13 @@ Prerequisites: Node.js/npm and Python 3.
    backend/venv/bin/pip install -r backend/requirements.txt
    ```
 
-3. Configure the backend. The app uses SQLite if `DATABASE_URL` is unset. For local development, create `backend/.env` with private values for at least:
+3. Configure the backend. The app uses SQLite if `DATABASE_URL` is unset in
+   development. For local development, create `backend/.env` with private
+   values for at least:
 
    ```dotenv
-   SECRET_KEY=replace-with-a-private-random-value
-   JWT_SECRET_KEY=replace-with-a-different-private-random-value
+   SECRET_KEY=replace-with-a-private-random-value-of-at-least-32-characters
+   JWT_SECRET_KEY=replace-with-a-different-private-random-value-of-at-least-32-characters
    DEFAULT_ADMIN_EMAIL=admin@example.com
    DEFAULT_ADMIN_PASSWORD=replace-with-a-strong-password
    PLATFORM_ADMIN_EMAILS=admin@example.com
@@ -114,12 +119,36 @@ Prerequisites: Node.js/npm and Python 3.
 
    To use another database, set `DATABASE_URL` to its SQLAlchemy connection URL.
 
-4. Initialize the database and start the backend:
+4. For a completely empty local database, initialize the current schema and
+   seed the initial owner/platform administrator. This stamps Alembic at the
+   current migration head, so do not run `flask db upgrade` afterward:
 
    ```bash
    cd backend
    ./venv/bin/python init_db.py
    ./venv/bin/python app.py
+   ```
+
+   For an existing legacy inventory database, back it up and run only
+   `flask db upgrade` from `backend/`. Do not run `init_db.py` on an existing
+   database. The legacy MySQL `database/schema.sql` file is not the complete
+   current SaaS schema and must not be used to provision a new production DB.
+
+   Production setup requires a persistent MySQL database. Set `DATABASE_URL`
+   to `mysql+pymysql://...`, supply `SECRET_KEY`, `JWT_SECRET_KEY`, and
+   `PLATFORM_ADMIN_EMAILS`, and provide `DEFAULT_ADMIN_EMAIL` and
+   `DEFAULT_ADMIN_PASSWORD` only when bootstrapping a new database. From a
+   trusted environment configured with the production variables, use
+   `flask init-fresh-db` for an empty database or `flask db upgrade` for an
+   existing legacy database. Back up existing data first. The health endpoint
+   reports `schema: ready` only when all application tables exist and the
+   Alembic revision is current.
+
+   ```bash
+   cd backend
+   ./venv/bin/flask --app app init-fresh-db
+   # For an existing database instead:
+   ./venv/bin/flask --app app db upgrade
    ```
 
 5. In another terminal, start the frontend:
@@ -131,12 +160,21 @@ Prerequisites: Node.js/npm and Python 3.
 
    Open the local URL printed by Vite. Its development server proxies `/api` requests to the Flask server at `http://127.0.0.1:5000`.
 
+Supplier PDF uploads are intentionally disabled in production until persistent
+object storage is selected and configured. In development, PDFs are parsed in
+memory, request size is capped, and uploaded files are not retained.
+
+Authentication endpoints use database-backed rate limits. Logout revokes the
+current JWT, and business-related foreign keys enforce tenant boundaries at the
+database level.
+
 ## Tests and checks
 
-Run backend tests from the repository root:
+Run backend tests from the backend directory:
 
 ```bash
-backend/venv/bin/python -m pytest backend/tests
+cd backend
+./venv/bin/python -m unittest discover -s tests
 ```
 
 Build and lint the frontend:

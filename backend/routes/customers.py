@@ -14,6 +14,7 @@ from schemas.validators import (
 from services.serializers import customer_to_dict, order_to_dict
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.rate_limit import rate_limit
 from utils.security import hash_password, verify_password
 from utils.tenancy import business_required
 
@@ -32,6 +33,7 @@ def _portal_token(customer):
 
 
 @customers_bp.post("/portal/register")
+@rate_limit(max_requests=5, window_seconds=3600)
 def register_customer_portal():
     data = validate_payload(CustomerPortalRegistrationSchema, request.get_json())
     business = Business.query.filter_by(slug=data["business_slug"], status="active").first()
@@ -66,6 +68,7 @@ def register_customer_portal():
 
 
 @customers_bp.post("/portal/login")
+@rate_limit(max_requests=5, window_seconds=900)
 def login_customer_portal():
     data = validate_payload(CustomerPortalLoginSchema, request.get_json())
     business = Business.query.filter_by(slug=data["business_slug"], status="active").first()

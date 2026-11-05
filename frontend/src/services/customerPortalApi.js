@@ -1,10 +1,13 @@
 import axios from "axios";
+import { attachApiErrorHandling } from "./apiErrors";
 
 const TOKEN_KEY = "ims-customer-portal-token";
 
 const customerPortalClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
+
+attachApiErrorHandling(customerPortalClient);
 
 customerPortalClient.interceptors.request.use((config) => {
   const token = sessionStorage.getItem(TOKEN_KEY);
@@ -16,6 +19,10 @@ customerPortalClient.interceptors.request.use((config) => {
 
 export function getCustomerPortalToken() {
   return sessionStorage.getItem(TOKEN_KEY);
+}
+
+export function clearCustomerPortalToken() {
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 function saveCustomerPortalToken(token) {
@@ -44,6 +51,10 @@ export async function changeCustomerPortalPassword(passwords) {
   return data;
 }
 
-export function logoutCustomerPortal() {
-  sessionStorage.removeItem(TOKEN_KEY);
+export async function logoutCustomerPortal() {
+  try {
+    await customerPortalClient.post("/auth/logout");
+  } finally {
+    clearCustomerPortalToken();
+  }
 }

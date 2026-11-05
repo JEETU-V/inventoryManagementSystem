@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Boxes, CircleCheck, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useAppData } from "../contexts/useAppData";
+import { apiErrorMessage } from "../services/apiErrors";
+
+const APP_NAME = import.meta.env.VITE_APP_NAME || "Stockroom";
 
 function Login({ platformAdminMode = false, businessSlug = "", registrationMode = false }) {
   const [mode, setMode] = useState(registrationMode ? "register" : "login");
@@ -76,9 +79,12 @@ function Login({ platformAdminMode = false, businessSlug = "", registrationMode 
         { replace: true }
       );
     } catch (error) {
-      setError(error.response?.data?.message || error.message || (mode === "register"
+      const fallback = mode === "register"
         ? "Unable to create your workspace."
-        : "Unable to sign in."));
+        : "Unable to sign in.";
+      setError(error.response?.status >= 500
+        ? error.userMessage || apiErrorMessage(error, fallback)
+        : error.response?.data?.message || error.message || fallback);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,7 +96,7 @@ function Login({ platformAdminMode = false, businessSlug = "", registrationMode 
         <div className="login-showcase-inner">
           <div className="login-brand">
             <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
-            <span className="brand-copy"><strong>Stockroom</strong><small>INVENTORY STUDIO</small></span>
+            <span className="brand-copy"><strong>{APP_NAME}</strong><small>INVENTORY STUDIO</small></span>
           </div>
           <div className="showcase-copy">
             <span className="showcase-eyebrow"><span /> YOUR SHOP, IN GOOD HANDS</span>
@@ -118,7 +124,7 @@ function Login({ platformAdminMode = false, businessSlug = "", registrationMode 
         <div className="login-form-wrap">
           <div className="login-mobile-brand">
             <span className="brand-mark"><Boxes size={19} strokeWidth={2.2} /></span>
-            <span className="brand-copy"><strong>Stockroom</strong><small>INVENTORY STUDIO</small></span>
+            <span className="brand-copy"><strong>{APP_NAME}</strong><small>INVENTORY STUDIO</small></span>
           </div>
           <span className="login-step">
             {platformAdminMode ? <ShieldCheck size={14} /> : <LockKeyhole size={14} />}
@@ -215,7 +221,7 @@ function Login({ platformAdminMode = false, businessSlug = "", registrationMode 
                     setError("");
                   }}
                 >
-                  {mode === "register" ? "Already have an account? Sign in" : "New to Stockroom? Create a workspace"}
+                  {mode === "register" ? "Already have an account? Sign in" : `New to ${APP_NAME}? Create a workspace`}
                 </button>}
               <Link className="login-mode-toggle block" to="/platform-admin/login">
                 Login as an admin
@@ -229,7 +235,7 @@ function Login({ platformAdminMode = false, businessSlug = "", registrationMode 
           )}
           <p className="login-security"><LockKeyhole size={13} /> Your business data stays private and secure.</p>
         </div>
-        <footer className="login-footer"><span>Stockroom Inventory Studio</span><span>Made for the details that matter.</span></footer>
+        <footer className="login-footer"><span>{APP_NAME} Inventory Studio</span><span>Made for the details that matter.</span></footer>
       </section>
     </main>
   );

@@ -10,6 +10,19 @@ export default function SupplierPdfUpload({ supplierId, onUploadSuccess }) {
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
+  if (import.meta.env.PROD) {
+    return (
+      <div className="pdf-upload-container">
+        <div className="pdf-upload-card">
+          <h3>Supplier PDF uploads are unavailable</h3>
+          <p className="help-text">
+            Uploads are disabled until persistent file storage is configured for this deployment.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {

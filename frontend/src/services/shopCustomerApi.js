@@ -1,10 +1,13 @@
 import axios from "axios";
+import { attachApiErrorHandling } from "./apiErrors";
 
 const TOKEN_KEY = "ims-shop-customer-token";
 
 const shopCustomerClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
 });
+
+attachApiErrorHandling(shopCustomerClient);
 
 shopCustomerClient.interceptors.request.use((config) => {
   const token = sessionStorage.getItem(TOKEN_KEY);
@@ -18,6 +21,14 @@ export function getShopCustomerToken() {
 
 export function clearShopCustomerToken() {
   sessionStorage.removeItem(TOKEN_KEY);
+}
+
+async function logoutShopCustomer() {
+  try {
+    await shopCustomerClient.post("/auth/logout");
+  } finally {
+    clearShopCustomerToken();
+  }
 }
 
 function saveShopCustomerToken(token) {
@@ -55,6 +66,7 @@ export const shopCustomerApi = {
     const { data } = await shopCustomerClient.put(`/shops/${encodeURIComponent(slug)}/customer/password`, passwords);
     return data;
   },
+  logout: logoutShopCustomer,
   async orders(slug) {
     const { data } = await shopCustomerClient.get(`/shops/${encodeURIComponent(slug)}/customer/orders`);
     return data;

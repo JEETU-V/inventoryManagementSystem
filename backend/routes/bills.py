@@ -1,9 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, g, jsonify
 
-from models import Order
+from models import Business, Order, db
 from utils.errors import ApiError
 from utils.tenancy import business_required
 
@@ -11,11 +11,20 @@ bills_bp = Blueprint("bills", __name__)
 
 
 def _company_info():
+    business = db.session.get(Business, g.business_id)
+    if not business:
+        return {
+            "name": current_app.config["COMPANY_NAME"],
+            "address": current_app.config["COMPANY_ADDRESS"],
+            "phone": current_app.config["COMPANY_PHONE"],
+            "email": current_app.config["COMPANY_EMAIL"],
+            "gstNumber": current_app.config["COMPANY_GST_NUMBER"],
+        }
     return {
-        "name": current_app.config["COMPANY_NAME"],
-        "address": current_app.config["COMPANY_ADDRESS"],
-        "phone": current_app.config["COMPANY_PHONE"],
-        "email": current_app.config["COMPANY_EMAIL"],
+        "name": business.name,
+        "address": business.storefront_address or current_app.config["COMPANY_ADDRESS"],
+        "phone": business.storefront_contact_phone or current_app.config["COMPANY_PHONE"],
+        "email": business.storefront_contact_email or current_app.config["COMPANY_EMAIL"],
         "gstNumber": current_app.config["COMPANY_GST_NUMBER"],
     }
 

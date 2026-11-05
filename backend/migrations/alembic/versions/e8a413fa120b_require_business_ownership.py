@@ -35,6 +35,7 @@ TENANT_TABLES = (
 def upgrade():
     connection = op.get_bind()
     inspector = sa.inspect(connection)
+    quote = connection.dialect.identifier_preparer.quote
 
     for table_name in TENANT_TABLES:
         if not inspector.has_table(table_name):
@@ -45,7 +46,10 @@ def upgrade():
                 f"Cannot enforce business ownership: {table_name}.business_id is missing."
             )
         if connection.execute(
-            sa.text(f'SELECT 1 FROM "{table_name}" WHERE business_id IS NULL LIMIT 1')
+            sa.text(
+                f"SELECT 1 FROM {quote(table_name)} "
+                "WHERE business_id IS NULL LIMIT 1"
+            )
         ).first():
             raise RuntimeError(
                 f"Cannot enforce business ownership: {table_name} contains unassigned rows."

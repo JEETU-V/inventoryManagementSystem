@@ -210,8 +210,12 @@ function ShopCustomerPage({ slug, orderId }) {
     }
   }
 
-  function signOut() {
-    clearShopCustomerToken();
+  async function signOut() {
+    try {
+      await shopCustomerApi.logout();
+    } catch (requestError) {
+      setError(requestError.userMessage || "You were signed out on this device, but server revocation could not be confirmed.");
+    }
     setProfile(null);
     setOrders([]);
     navigate(`${base}/products`, { replace: true });

@@ -26,8 +26,22 @@ so existing customer records remain usable without creating portal accounts.
 Administrators can issue portal access to an existing customer; issued
 temporary passwords are required to be changed on first sign-in.
 
-For a new local database, run `python init_db.py` to create the inventory schema
-and seed the configured administrator, then run `flask db upgrade`.
+Fresh and existing databases use separate workflows:
+
+- **Empty database:** set `DEFAULT_ADMIN_EMAIL` and a unique
+  `DEFAULT_ADMIN_PASSWORD`, then run `flask init-fresh-db` (or
+  `python init_db.py`). This creates the current schema from registered models,
+  creates the initial administrator/owner membership, and stamps Alembic at its
+  current head. Do not run `flask db upgrade` afterward.
+- **Existing legacy database:** back it up, inspect its current schema and
+  Alembic revision, then run `flask db upgrade`. Do not run `init_db.py` first;
+  `create_all()` followed by the historical migrations can duplicate tables
+  and columns.
+
+The `database/schema.sql` file documents the legacy MySQL inventory schema and
+is not a complete current SaaS schema. Do not use it to create a fresh
+production database. Production requires a persistent MySQL URL, strong
+application secrets, and an explicit platform-administrator allowlist.
 
 Generate future migrations with `flask db migrate -m "describe the schema
 change"`, review the generated script, and then apply it with `flask db upgrade`.

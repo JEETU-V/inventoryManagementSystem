@@ -14,6 +14,7 @@ from schemas.validators import (
 from services.order_service import create_order
 from utils.errors import ApiError
 from utils.permissions import role_required
+from utils.rate_limit import rate_limit
 from utils.security import hash_password, verify_password
 from utils.tenancy import require_business_session
 
@@ -51,6 +52,7 @@ def public_products(slug):
 
 
 @shops_bp.post("/<string:slug>/customer/register")
+@rate_limit(max_requests=5, window_seconds=3600)
 def register_shop_customer(slug):
     business = _find_storefront(slug)
     data = validate_payload(ShopCustomerRegistrationSchema, request.get_json())
@@ -111,6 +113,7 @@ def register_shop_customer(slug):
 
 
 @shops_bp.post("/<string:slug>/customer/login")
+@rate_limit(max_requests=5, window_seconds=900)
 def login_shop_customer(slug):
     business = _find_storefront(slug)
     data = validate_payload(ShopCustomerLoginSchema, request.get_json())

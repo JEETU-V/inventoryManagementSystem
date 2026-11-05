@@ -1,3 +1,6 @@
+-- Legacy inventory schema reference only; it is not the current SaaS schema.
+-- Do not provision production from this file. Use `flask init-fresh-db` for an
+-- empty database or `flask db upgrade` for an existing legacy inventory DB.
 CREATE DATABASE IF NOT EXISTS inventory_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE inventory_management;
 

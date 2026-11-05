@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, UniqueConstraint
 
 from . import db
 
@@ -35,6 +35,21 @@ class User(db.Model, TimestampMixin):
         back_populates="created_by",
         foreign_keys="Business.created_by_id",
     )
+
+
+class RevokedToken(db.Model):
+    __tablename__ = "revoked_tokens"
+
+    jti = db.Column(db.String(36), primary_key=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+
+
+class RateLimitBucket(db.Model):
+    __tablename__ = "rate_limit_buckets"
+
+    key = db.Column(db.String(64), primary_key=True)
+    request_count = db.Column(db.Integer, nullable=False)
+    window_started_at = db.Column(db.Integer, nullable=False, index=True)
 
 
 class CustomerAccount(db.Model, TimestampMixin):
@@ -182,9 +197,14 @@ class Category(db.Model, TimestampMixin, BusinessScoped):
 
     __table_args__ = (
         UniqueConstraint("business_id", "name", name="uq_categories_business_name"),
+        UniqueConstraint("business_id", "id", name="uq_categories_business_id_id"),
     )
 
-    products = db.relationship("Product", back_populates="category_ref")
+    products = db.relationship(
+        "Product",
+        back_populates="category_ref",
+        foreign_keys="Product.category_id",
+    )
 
 
 class Supplier(db.Model, TimestampMixin, BusinessScoped):
@@ -196,17 +216,34 @@ class Supplier(db.Model, TimestampMixin, BusinessScoped):
     email = db.Column(db.String(255), nullable=False)
     products_supplied = db.Column(db.Text, nullable=False)
 
-    products = db.relationship("Product", back_populates="supplier")
-    transactions = db.relationship("SupplierTransaction", back_populates="supplier")
-    pdf_uploads = db.relationship("SupplierPdfUpload", back_populates="supplier", cascade="all, delete-orphan")
+    __table_args__ = (
+        UniqueConstraint("business_id", "id", name="uq_suppliers_business_id_id"),
+    )
+
+    products = db.relationship(
+        "Product",
+        back_populates="supplier",
+        foreign_keys="Product.supplier_id",
+    )
+    transactions = db.relationship(
+        "SupplierTransaction",
+        back_populates="supplier",
+        foreign_keys="SupplierTransaction.supplier_id",
+    )
+    pdf_uploads = db.relationship(
+        "SupplierPdfUpload",
+        back_populates="supplier",
+        cascade="all, delete-orphan",
+        foreign_keys="SupplierPdfUpload.supplier_id",
+    )
 
 
 class Product(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "products"
 
     id = db.Column(db.Integer, primary_key=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=True)
+    supplier_id = db.Column(db.Integer, nullable=True)
+    category_id = db.Column(db.Integer, nullable=True)
     name = db.Column(db.String(160), nullable=False)
     sku = db.Column(db.String(80), nullable=False, index=True)
     category = db.Column(db.String(120), nullable=False, default="")
@@ -217,26 +254,74 @@ class Product(db.Model, TimestampMixin, BusinessScoped):
 
     __table_args__ = (
         UniqueConstraint("business_id", "sku", name="uq_products_business_sku"),
+        UniqueConstraint("business_id", "id", name="uq_products_business_id_id"),
+        ForeignKeyConstraint(
+            ["business_id", "supplier_id"],
+            ["suppliers.business_id", "suppliers.id"],
+            name="fk_products_supplier_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "category_id"],
+            ["categories.business_id", "categories.id"],
+            name="fk_products_category_business",
+        ),
     )
 
-    supplier = db.relationship("Supplier", back_populates="products")
-    category_ref = db.relationship("Category", back_populates="products")
-    supplier_transactions = db.relationship("SupplierTransaction", back_populates="product")
-    inventory_transactions = db.relationship("InventoryTransaction", back_populates="product")
+    supplier = db.relationship(
+        "Supplier",
+        back_populates="products",
+        foreign_keys=[supplier_id],
+    )
+    category_ref = db.relationship(
+        "Category",
+        back_populates="products",
+        foreign_keys=[category_id],
+    )
+    supplier_transactions = db.relationship(
+        "SupplierTransaction",
+        back_populates="product",
+        foreign_keys="SupplierTransaction.product_id",
+    )
+    inventory_transactions = db.relationship(
+        "InventoryTransaction",
+        back_populates="product",
+        foreign_keys="InventoryTransaction.product_id",
+    )
 
 
 class SupplierTransaction(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "supplier_transactions"
 
     id = db.Column(db.Integer, primary_key=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    supplier_id = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     total_cost = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     date = db.Column(db.Date, nullable=False, default=date.today)
 
-    supplier = db.relationship("Supplier", back_populates="transactions")
-    product = db.relationship("Product", back_populates="supplier_transactions")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["business_id", "supplier_id"],
+            ["suppliers.business_id", "suppliers.id"],
+            name="fk_supplier_transactions_supplier_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "product_id"],
+            ["products.business_id", "products.id"],
+            name="fk_supplier_transactions_product_business",
+        ),
+    )
+
+    supplier = db.relationship(
+        "Supplier",
+        back_populates="transactions",
+        foreign_keys=[supplier_id],
+    )
+    product = db.relationship(
+        "Product",
+        back_populates="supplier_transactions",
+        foreign_keys=[product_id],
+    )
 
 
 class Customer(db.Model, TimestampMixin, BusinessScoped):
@@ -263,11 +348,16 @@ class Customer(db.Model, TimestampMixin, BusinessScoped):
 
     __table_args__ = (
         UniqueConstraint("business_id", "customer_account_id", name="uq_customers_business_account"),
+        UniqueConstraint("business_id", "id", name="uq_customers_business_id_id"),
     )
 
     account = db.relationship("CustomerAccount", back_populates="shop_profiles")
     business = db.relationship("Business")
-    orders = db.relationship("Order", back_populates="customer")
+    orders = db.relationship(
+        "Order",
+        back_populates="customer",
+        foreign_keys="Order.customer_id",
+    )
 
 
 class Order(db.Model, TimestampMixin, BusinessScoped):
@@ -275,7 +365,7 @@ class Order(db.Model, TimestampMixin, BusinessScoped):
 
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
+    customer_id = db.Column(db.Integer, nullable=False)
     total_quantity = db.Column(db.Integer, nullable=False, default=0)
     total_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     status = db.Column(db.String(30), nullable=False, default="Pending")
@@ -283,70 +373,150 @@ class Order(db.Model, TimestampMixin, BusinessScoped):
     fulfillment_type = db.Column(db.String(20), nullable=False, default="pickup")
     delivery_address = db.Column(db.Text, nullable=False, default="")
 
-    customer = db.relationship("Customer", back_populates="orders")
-    items = db.relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
-    sale = db.relationship("Sale", back_populates="order", uselist=False)
+    __table_args__ = (
+        UniqueConstraint("business_id", "id", name="uq_orders_business_id_id"),
+        ForeignKeyConstraint(
+            ["business_id", "customer_id"],
+            ["customers.business_id", "customers.id"],
+            name="fk_orders_customer_business",
+        ),
+    )
+
+    customer = db.relationship(
+        "Customer",
+        back_populates="orders",
+        foreign_keys=[customer_id],
+    )
+    items = db.relationship(
+        "OrderItem",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        foreign_keys="OrderItem.order_id",
+    )
+    sale = db.relationship("Sale", back_populates="order", uselist=False, foreign_keys="Sale.order_id")
 
 
 class OrderItem(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "order_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    order_id = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
     product_name = db.Column(db.String(160), nullable=False)
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True)
+    supplier_id = db.Column(db.Integer, nullable=True)
     unit_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     quantity = db.Column(db.Integer, nullable=False)
     discount = db.Column(db.Numeric(5, 2), nullable=False, default=0)
     total_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
-    order = db.relationship("Order", back_populates="items")
-    product = db.relationship("Product")
-    supplier = db.relationship("Supplier")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["business_id", "order_id"],
+            ["orders.business_id", "orders.id"],
+            name="fk_order_items_order_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "product_id"],
+            ["products.business_id", "products.id"],
+            name="fk_order_items_product_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "supplier_id"],
+            ["suppliers.business_id", "suppliers.id"],
+            name="fk_order_items_supplier_business",
+        ),
+    )
+
+    order = db.relationship("Order", back_populates="items", foreign_keys=[order_id])
+    product = db.relationship("Product", foreign_keys=[product_id])
+    supplier = db.relationship("Supplier", foreign_keys=[supplier_id])
 
 
 class Sale(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "sales"
 
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), unique=True, nullable=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True)
+    order_id = db.Column(db.Integer, unique=True, nullable=True)
+    customer_id = db.Column(db.Integer, nullable=True)
     total_quantity = db.Column(db.Integer, nullable=False, default=0)
     total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     date = db.Column(db.Date, nullable=False, default=date.today)
 
-    order = db.relationship("Order", back_populates="sale")
-    customer = db.relationship("Customer")
-    items = db.relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
+    __table_args__ = (
+        UniqueConstraint("business_id", "id", name="uq_sales_business_id_id"),
+        ForeignKeyConstraint(
+            ["business_id", "order_id"],
+            ["orders.business_id", "orders.id"],
+            name="fk_sales_order_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "customer_id"],
+            ["customers.business_id", "customers.id"],
+            name="fk_sales_customer_business",
+        ),
+    )
+
+    order = db.relationship("Order", back_populates="sale", foreign_keys=[order_id])
+    customer = db.relationship("Customer", foreign_keys=[customer_id])
+    items = db.relationship(
+        "SaleItem",
+        back_populates="sale",
+        cascade="all, delete-orphan",
+        foreign_keys="SaleItem.sale_id",
+    )
 
 
 class SaleItem(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "sale_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    sale_id = db.Column(db.Integer, db.ForeignKey("sales.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    sale_id = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
     product_name = db.Column(db.String(160), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
-    sale = db.relationship("Sale", back_populates="items")
-    product = db.relationship("Product")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["business_id", "sale_id"],
+            ["sales.business_id", "sales.id"],
+            name="fk_sale_items_sale_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "product_id"],
+            ["products.business_id", "products.id"],
+            name="fk_sale_items_product_business",
+        ),
+    )
+
+    sale = db.relationship("Sale", back_populates="items", foreign_keys=[sale_id])
+    product = db.relationship("Product", foreign_keys=[product_id])
 
 
 class InventoryTransaction(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "inventory_transactions"
 
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
     transaction_type = db.Column(db.String(30), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     reason = db.Column(db.String(255), nullable=False, default="")
     date = db.Column(db.Date, nullable=False, default=date.today)
 
-    product = db.relationship("Product", back_populates="inventory_transactions")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["business_id", "product_id"],
+            ["products.business_id", "products.id"],
+            name="fk_inventory_transactions_product_business",
+        ),
+    )
+
+    product = db.relationship(
+        "Product",
+        back_populates="inventory_transactions",
+        foreign_keys=[product_id],
+    )
 
 
 class ProfitRecord(db.Model, TimestampMixin, BusinessScoped):
@@ -364,30 +534,65 @@ class SupplierPdfUpload(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "supplier_pdf_uploads"
 
     id = db.Column(db.Integer, primary_key=True)
-    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False)
+    supplier_id = db.Column(db.Integer, nullable=False)
     filename = db.Column(db.String(255), nullable=False)
-    file_path = db.Column(db.String(500), nullable=False)
+    file_path = db.Column(db.String(500), nullable=True)
     status = db.Column(db.String(30), nullable=False, default="processed")
     total_items = db.Column(db.Integer, nullable=False, default=0)
     successfully_added = db.Column(db.Integer, nullable=False, default=0)
     notes = db.Column(db.Text, nullable=True)
     upload_date = db.Column(db.Date, nullable=False, default=date.today)
 
-    supplier = db.relationship("Supplier", back_populates="pdf_uploads")
-    items = db.relationship("SupplierPdfItem", back_populates="pdf_upload", cascade="all, delete-orphan")
+    __table_args__ = (
+        UniqueConstraint("business_id", "id", name="uq_supplier_pdf_uploads_business_id_id"),
+        ForeignKeyConstraint(
+            ["business_id", "supplier_id"],
+            ["suppliers.business_id", "suppliers.id"],
+            name="fk_supplier_pdf_uploads_supplier_business",
+        ),
+    )
+
+    supplier = db.relationship(
+        "Supplier",
+        back_populates="pdf_uploads",
+        foreign_keys=[supplier_id],
+    )
+    items = db.relationship(
+        "SupplierPdfItem",
+        back_populates="pdf_upload",
+        cascade="all, delete-orphan",
+        foreign_keys="SupplierPdfItem.pdf_upload_id",
+    )
 
 
 class SupplierPdfItem(db.Model, TimestampMixin, BusinessScoped):
     __tablename__ = "supplier_pdf_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    pdf_upload_id = db.Column(db.Integer, db.ForeignKey("supplier_pdf_uploads.id"), nullable=False)
+    pdf_upload_id = db.Column(db.Integer, nullable=False)
     product_name = db.Column(db.String(160), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(12, 2), nullable=True)
     description = db.Column(db.Text, nullable=True)
     added_to_inventory = db.Column(db.Boolean, nullable=False, default=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=True)
+    product_id = db.Column(db.Integer, nullable=True)
 
-    pdf_upload = db.relationship("SupplierPdfUpload", back_populates="items")
-    product = db.relationship("Product")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["business_id", "pdf_upload_id"],
+            ["supplier_pdf_uploads.business_id", "supplier_pdf_uploads.id"],
+            name="fk_supplier_pdf_items_upload_business",
+        ),
+        ForeignKeyConstraint(
+            ["business_id", "product_id"],
+            ["products.business_id", "products.id"],
+            name="fk_supplier_pdf_items_product_business",
+        ),
+    )
+
+    pdf_upload = db.relationship(
+        "SupplierPdfUpload",
+        back_populates="items",
+        foreign_keys=[pdf_upload_id],
+    )
+    product = db.relationship("Product", foreign_keys=[product_id])

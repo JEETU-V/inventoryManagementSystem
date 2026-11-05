@@ -1,7 +1,9 @@
 import unittest
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app import create_app
-from models import Business, BusinessMembership, Customer, CustomerAccount, Product, User, db
+from models import Business, BusinessMembership, Customer, CustomerAccount, Product, Supplier, User, db
 from utils.security import hash_password
 
 
@@ -250,6 +252,32 @@ class ShopExperienceTests(unittest.TestCase):
             headers=headers,
         )
         self.assertEqual(owner_route_denied.status_code, 403)
+
+    def test_database_rejects_cross_business_product_supplier_reference(self):
+        db.session.execute(text("PRAGMA foreign_keys=ON"))
+        supplier = Supplier(
+            business_id=self.other_shop.id,
+            name="Other supplier",
+            contact="555-0123",
+            email="supplier@example.com",
+            products_supplied="Camera",
+        )
+        db.session.add(supplier)
+        db.session.commit()
+
+        db.session.add(Product(
+            business_id=self.shop.id,
+            supplier_id=supplier.id,
+            name="Invalid cross-shop product",
+            sku="CROSS-1",
+            category="Other",
+            purchase_price=1,
+            quantity=1,
+            price=2,
+        ))
+        with self.assertRaises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Boxes, LogOut, PackageCheck, ShoppingBag } from "lucide-react";
 import {
   getCustomerPortalToken,
+  clearCustomerPortalToken,
   changeCustomerPortalPassword,
   loadCustomerPortalDashboard,
   logoutCustomerPortal,
@@ -25,7 +26,7 @@ function CustomerPortalDashboard() {
       .catch((requestError) => {
         if (!active) return;
         if (requestError.response?.status === 401 || requestError.response?.status === 404) {
-          logoutCustomerPortal();
+          clearCustomerPortalToken();
           navigate("/portal/login", { replace: true });
           return;
         }
@@ -38,9 +39,14 @@ function CustomerPortalDashboard() {
     return <Navigate to="/portal/login" replace />;
   }
 
-  function signOut() {
-    logoutCustomerPortal();
-    navigate("/portal/login", { replace: true });
+  async function signOut() {
+    let message = "";
+    try {
+      await logoutCustomerPortal();
+    } catch (requestError) {
+      message = requestError.userMessage || "You were signed out on this device, but server revocation could not be confirmed.";
+    }
+    navigate("/portal/login", { replace: true, state: { message } });
   }
 
   async function savePassword(event) {

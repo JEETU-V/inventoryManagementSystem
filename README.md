@@ -87,6 +87,19 @@ events.
 - Backend: Python, Flask, SQLAlchemy, Flask-JWT-Extended
 - Database: SQLite for local development; MySQL for production
 
+## Project layout
+
+- `frontend/` contains the React application and Vite configuration.
+- `backend/` contains the Flask API, SQLAlchemy models, migrations, and tests.
+- `backend/routes/` exposes the `/api` endpoints for authentication, businesses,
+  products, suppliers, customers, orders, inventory, reports, shops, and
+  platform administration.
+- `backend/services/` contains shared inventory, order, reporting, and
+  serialization logic.
+- `backend/migrations/alembic/` contains database schema migrations.
+- `vercel.json` configures the frontend and backend services and routes `/api`
+  requests to Flask.
+
 ## Local development
 
 Prerequisites: Node.js/npm and Python 3.
@@ -181,6 +194,38 @@ Prerequisites: Node.js/npm and Python 3.
    ```
 
    Open the local URL printed by Vite. Its development server proxies `/api` requests to the Flask server at `http://127.0.0.1:5000`.
+
+The frontend reads `VITE_API_URL` (defaults to `/api`) and `VITE_APP_NAME`
+(defaults to `Stockroom`) from its build environment. See
+[`frontend/.env.example`](frontend/.env.example) for the available frontend
+settings.
+
+## Vercel deployment
+
+Deploy the repository from its root so Vercel can read `vercel.json`. The
+configuration routes `/api/*` to the Flask backend and all other paths to the
+Vite frontend. Production needs a persistent MySQL database; Vercel's local
+filesystem is not suitable for storing application data.
+
+Set these backend environment variables in Vercel:
+
+- `DATABASE_URL`: production MySQL SQLAlchemy URL.
+- `SECRET_KEY` and `JWT_SECRET_KEY`: separate random secrets, each at least 32
+  characters.
+- `PLATFORM_ADMIN_EMAILS`: comma-separated platform administrator email
+  allowlist.
+- `MYSQL_SSL_CA`: complete PEM certificate for the MySQL provider.
+
+Set `DEFAULT_ADMIN_EMAIL` and `DEFAULT_ADMIN_PASSWORD` only when initializing a
+new database. Configure `CORS_ORIGINS` if the frontend and API are served from
+different origins. Optionally set `VITE_APP_NAME`; leave `VITE_API_URL` unset
+for the same-origin `/api` routing configured here.
+
+Initialize a new, empty database once from a trusted environment with the
+production database settings using `flask --app app init-fresh-db`. For an
+existing database, back it up and use `flask --app app db upgrade` instead.
+Verify that `https://<your-domain>/api/health` reports `status: ok` and
+`schema: ready` after deployment.
 
 Supplier PDF uploads are intentionally disabled in production until persistent
 object storage is selected and configured. In development, PDFs are parsed in

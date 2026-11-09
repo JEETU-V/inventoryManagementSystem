@@ -6,6 +6,6 @@ build
 .vercel
 __pycache__/
 *.py[cod]
-backend/instance/*.db
 backend/venv/
 backend/certs/
+backend/instance/
